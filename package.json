@@ -1,0 +1,18 @@
+{
+  "name": "procurement-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Сайт консалтинговой фирмы по стратегическим закупкам: Cloudflare Worker + встроенная CMS + DMS",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node --test test/unit.test.mjs",
+    "test:smoke": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "wrangler": "4.153.0"
+  }
+}

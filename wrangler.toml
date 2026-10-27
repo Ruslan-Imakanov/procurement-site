@@ -1,0 +1,41 @@
+# Cloudflare Worker: сайт + встроенная CMS + DMS. Хранилище — Durable Object с SQLite (класс Store).
+name = "procurement-site"
+main = "dist/worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+no_bundle = true
+
+# Статика из dist/assets отдаётся напрямую; остальные адреса обрабатывает Worker
+[assets]
+directory = "dist/assets"
+binding = "ASSETS"
+
+[build]
+command = "node build.mjs"
+watch_dir = "src"
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js"]
+
+[[durable_objects.bindings]]
+name = "STORE"
+class_name = "Store"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Store"]
+
+[vars]
+# Регион, где создаётся хранилище при первом запуске (eeur — Восточная Европа, ближе к Центральной Азии)
+DO_LOCATION = "eeur"
+
+[observability]
+enabled = true
+
+# Секреты (задаются в панели Cloudflare или командой `npx wrangler secret put ИМЯ`):
+#   SETUP_TOKEN        — код для создания первого администратора на /admin
+#   RESEND_API_KEY     — (необязательно) отправка писем о заявках через resend.com
+#   TELEGRAM_BOT_TOKEN — (необязательно) уведомления о заявках в Telegram
+#   TURNSTILE_SECRET   — (необязательно) защита формы от спама Cloudflare Turnstile
+#   IP_SALT            — (необязательно) соль для хеширования IP в заявках

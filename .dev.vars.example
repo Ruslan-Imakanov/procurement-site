@@ -1,0 +1,2 @@
+# Локальные секреты для `npm run dev` (скопируйте в .dev.vars)
+SETUP_TOKEN=dev-setup-token
