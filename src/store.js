@@ -5,7 +5,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { SINGLETONS, COLLECTIONS, SLUG_TYPES } from './content-types.js';
-import { deepMerge, randomId, slugify, sha256hex, b64url } from './lib/util.js';
+import { deepMerge, overlay, LOCALES, randomId, slugify, sha256hex, b64url } from './lib/util.js';
 import { hashPassword, verifyPassword, checkPasswordStrength } from './lib/password.js';
 import { counterKey, formatNumber, formatFilename } from './lib/dms.js';
 
@@ -39,7 +39,8 @@ export class Store extends DurableObject {
       if (!r.ok) throw new Error(`Не найден ${path}: ${r.status}`);
       return r.json();
     };
-    const [seed, schemas] = await Promise.all([get('/_data/seed.json'), get('/_data/schemas.json')]);
+    const [seed, schemas, i18n] = await Promise.all([get('/_data/seed.json'), get('/_data/schemas.json'), get('/_data/i18n.json')]);
+    this.seedI18n = i18n;
     this.seedDocs = seed.docs;
     this.seedEntries = seed.entries;
     this.schemas = schemas;
@@ -109,7 +110,18 @@ export class Store extends DurableObject {
     const publicDocs = this.rows(`SELECT d.id, d.number, d.title, d.description, d.doc_date, d.type, d.version, v.filename, v.size, v.mime
       FROM documents d JOIN document_versions v ON v.doc_id = d.id AND v.version = d.version
       WHERE d.access = 'public' ORDER BY d.doc_date DESC, d.number DESC`);
-    return { version: Number(this.meta('content_version') || 0), docs, entries, media, publicDocs };
+    const i18n = {};
+    for (const loc of LOCALES.slice(1)) {
+      const d = {};
+      for (const key of SINGLETONS) d[key] = this.docOverlay(loc, key);
+      const e = {};
+      for (const en of entries) {
+        const ov = this.entryOverlay(loc, en.id, en.type, en.slug, en.data);
+        if (ov) e[en.id] = ov;
+      }
+      i18n[loc] = { docs: d, entries: e };
+    }
+    return { version: Number(this.meta('content_version') || 0), docs, entries, media, publicDocs, i18n };
   }
 
   contentVersion() { return Number(this.meta('content_version') || 0); }
@@ -121,7 +133,45 @@ export class Store extends DurableObject {
     return this.seedDocs[key] ? deepMerge(this.seedDocs[key], stored) : stored ?? null;
   }
 
+  // Ключи переводов: «kk:page:home», «en:settings», «kk:e:<id записи>»
+  parseKey(key) {
+    const m = /^(kk|en):(.+)$/.exec(String(key));
+    return m ? { loc: m[1], base: m[2] } : { loc: '', base: String(key) };
+  }
+
+  docOverlay(loc, key) {
+    const row = this.one('SELECT data FROM docs WHERE key=?', `${loc}:${key}`);
+    const seed = this.seedI18n?.[loc]?.docs?.[key];
+    return overlay(seed ?? {}, row ? JSON.parse(row.data) : undefined);
+  }
+
+  entryOverlay(loc, id, type, slug, data) {
+    const row = this.one('SELECT data FROM docs WHERE key=?', `${loc}:e:${id}`);
+    const seed = this.seedI18n?.[loc]?.entries?.[`${type}:${slug || data?.name || ''}`];
+    if (!row && !seed) return null;
+    return overlay(seed ?? {}, row ? JSON.parse(row.data) : undefined);
+  }
+
+  getTranslation(key) {
+    const { loc, base } = this.parseKey(key);
+    const em = /^e:([0-9a-f]+)$/.exec(base);
+    if (em) {
+      const e = this.getEntry(em[1]);
+      return this.entryOverlay(loc, e.id, e.type, e.slug, e.data) || {};
+    }
+    if (!SINGLETONS.includes(base)) throw new AppError('Неизвестный документ', 404);
+    return this.docOverlay(loc, base);
+  }
+
   putDoc(key, data, user) {
+    const { loc, base } = this.parseKey(key);
+    if (loc) {
+      if (!SINGLETONS.includes(base) && !/^e:[0-9a-f]+$/.test(base)) throw new AppError('Неизвестный документ', 404);
+      if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('Ожидается объект');
+      this.sql.exec('INSERT OR REPLACE INTO docs(key, data, updated_at, updated_by) VALUES (?, ?, ?, ?)', key, JSON.stringify(data), now(), user?.email || '');
+      this.bump();
+      return this.getTranslation(key);
+    }
     if (!SINGLETONS.includes(key)) throw new AppError('Неизвестный документ', 404);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new AppError('Ожидается объект');
     this.sql.exec('INSERT OR REPLACE INTO docs(key, data, updated_at, updated_by) VALUES (?, ?, ?, ?)', key, JSON.stringify(data), now(), user?.email || '');
@@ -191,6 +241,7 @@ export class Store extends DurableObject {
 
   deleteEntry(id) {
     this.sql.exec('DELETE FROM entries WHERE id=?', id);
+    this.sql.exec('DELETE FROM docs WHERE key IN (?, ?)', `kk:e:${id}`, `en:e:${id}`);
     this.bump();
     return { ok: true };
   }

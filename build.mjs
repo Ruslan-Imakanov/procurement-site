@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { SEED_DOCS, SEED_ENTRIES } from './src/seed.js';
 import { SCHEMAS } from './src/schemas.js';
+import { SEED_I18N } from './src/seed-i18n.js';
 import { HEROES, LOGOS, FAVICON } from './src/static-art.js';
 
 const dev = process.argv.includes('--dev');
@@ -44,6 +45,7 @@ const adminVer = createHash('sha256').update(adminJs + adminCss).digest('hex').s
 // данные и графика
 await write(out('_data/seed.json'), JSON.stringify({ docs: SEED_DOCS, entries: SEED_ENTRIES }));
 await write(out('_data/schemas.json'), JSON.stringify(SCHEMAS));
+await write(out('_data/i18n.json'), JSON.stringify(SEED_I18N));
 const statics = { ...HEROES, ...LOGOS };
 for (const [name, svg] of Object.entries(statics)) await write(out(`static/${name}.svg`), svg);
 await write(out('favicon.svg'), FAVICON);

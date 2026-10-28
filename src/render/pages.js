@@ -49,7 +49,7 @@ function featuresBlock(items) {
 function logosBlock(ctx, title, filter) {
   const logos = ctx.entries('client').filter(filter);
   if (!logos.length) return '';
-  return h`<section class="section section-tight" aria-label="${title || 'Клиенты'}"><div class="wrap">
+  return h`<section class="section section-tight" aria-label="${title || ctx.settings.ui?.clientsLabel || 'Клиенты'}"><div class="wrap">
     ${title ? h`<p class="logos-title">${title}</p>` : ''}
     <ul class="logos">${logos.map((c) => {
       const pic = img(ctx, c.data.logo, { alt: c.data.name, sizes: '200px' }) || h`<span>${c.data.name}</span>`;
@@ -73,7 +73,7 @@ const readingTime = (text) => Math.max(1, Math.round(String(text || '').split(/\
 function postMeta(ctx, a) {
   const ui = ctx.settings.ui || {};
   return h`<div class="post-meta">${a.data.category ? h`<span class="tag">${a.data.category}</span>` : ''}
-    ${a.data.date ? h`<time datetime="${a.data.date}">${fmtDateLong(a.data.date)}</time>` : ''}
+    ${a.data.date ? h`<time datetime="${a.data.date}">${fmtDateLong(a.data.date, ctx.locale)}</time>` : ''}
     <span>${String(ui.minRead || '{n} мин чтения').replace('{n}', readingTime(a.data.body))}</span></div>`;
 }
 
@@ -173,7 +173,7 @@ export function aboutPage(ctx) {
     <div class="team">${members.map((m) => h`<article class="member">
       ${img(ctx, m.photo, { sizes: '96px', alt: m.name, width: 96, height: 96 }) || h`<div class="avatar" aria-hidden="true">${initials(m.name)}</div>`}
       <h3>${m.name}</h3><div class="role">${m.role}</div><p>${m.bio}</p>
-      ${m.linkedin ? h`<a href="${safeUrl(m.linkedin)}" target="_blank" rel="noopener">Профиль</a>` : ''}
+      ${m.linkedin ? h`<a href="${safeUrl(m.linkedin)}" target="_blank" rel="noopener">${ctx.settings.ui?.profileLabel || 'Профиль'}</a>` : ''}
     </article>`)}</div>
   </div></section>` : ''}
   ${p.credentials?.items?.length ? h`<section class="section section-soft"><div class="wrap">
@@ -239,7 +239,7 @@ export function servicePage(ctx, sv) {
     <h2>${d.faq.title}</h2>${faq.map((x) => h`<details><summary>${x.q}</summary><p>${x.a}</p></details>`)}
   </div></section>` : ''}
   ${others.length ? h`<section class="section"><div class="wrap">
-    <div class="section-head"><h2>${ctx.settings.ui?.servicesMenu || 'Другие специализации'}</h2></div>
+    <div class="section-head"><h2>${ctx.settings.ui?.otherServices || ctx.settings.ui?.servicesMenu || 'Другие специализации'}</h2></div>
     <div class="grid grid-2">${others.map((o) => serviceCard(ctx, o))}</div>
   </div></section>` : ''}
   ${ctaBand(d.cta)}`;
@@ -264,7 +264,7 @@ export function insightsPage(ctx, cat) {
   const body = h`
   ${pageHero(ctx, p.hero, crumbs)}
   <section class="section"><div class="wrap">
-    ${cats.length > 1 ? h`<ul class="chips" aria-label="Темы">
+    ${cats.length > 1 ? h`<ul class="chips" aria-label="${ui.topicsLabel || 'Темы'}">
       <li><a href="/insights"${!cat ? raw(' aria-current="true"') : ''}>${p.allLabel || 'Все'}</a></li>
       ${cats.map((c) => h`<li><a href="/insights?topic=${encodeURIComponent(c)}"${c === cat ? raw(' aria-current="true"') : ''}>${c}</a></li>`)}
     </ul>` : ''}
@@ -276,7 +276,7 @@ export function insightsPage(ctx, cat) {
     <ul class="files">${docs.map((f) => {
       const ext = (String(f.filename).match(/\.([a-z0-9]+)$/i) || [])[1] || 'file';
       return h`<li class="file"><span class="file-ext" aria-hidden="true">${ext}</span>
-        <span class="file-info"><strong>${f.title}</strong><span>${f.number} · ${fmtDateLong(f.doc_date)} · ${fmtBytes(f.size)}</span>${f.description ? h`<span style="display:block">${f.description}</span>` : ''}</span>
+        <span class="file-info"><strong>${f.title}</strong><span>${f.number} · ${fmtDateLong(f.doc_date, ctx.locale)} · ${fmtBytes(f.size)}</span>${f.description ? h`<span style="display:block">${f.description}</span>` : ''}</span>
         <a class="btn btn-outline" href="/files/${f.id}/${encodeURIComponent(f.filename)}" data-download download>${ui.downloadLabel || 'Скачать'}<span class="visually-hidden"> ${f.title}</span></a></li>`;
     })}</ul>
   </div></section>` : ''}
@@ -298,7 +298,7 @@ export function articlePage(ctx, a) {
   const cover = img(ctx, d.cover, { priority: true, sizes: '(max-width: 1000px) 100vw, 1000px' });
   const body = h`
   ${pageHero(ctx, { eyebrow: d.category, title: d.title, subtitle: d.excerpt }, crumbs,
-    h`<p class="post-meta" style="color:rgba(255,255,255,.75);margin:20px 0 0">${d.author ? h`<span>${d.author}</span>` : ''}${d.date ? h`<time datetime="${d.date}">${fmtDateLong(d.date)}</time>` : ''}<span>${String(ui.minRead || '{n} мин').replace('{n}', readingTime(d.body))}</span></p>`)}
+    h`<p class="post-meta" style="color:rgba(255,255,255,.75);margin:20px 0 0">${d.author ? h`<span>${d.author}</span>` : ''}${d.date ? h`<time datetime="${d.date}">${fmtDateLong(d.date, ctx.locale)}</time>` : ''}<span>${String(ui.minRead || '{n} мин').replace('{n}', readingTime(d.body))}</span></p>`)}
   ${cover ? h`<div class="wrap"><div class="article-cover">${cover}</div></div>` : ''}
   <section class="section"><div class="wrap"><article class="article-body prose">${md(d.body)}
     <a class="back" href="/insights">${ui.backToInsights || '← Назад'}</a></article></div></section>
@@ -395,6 +395,7 @@ export function contactPage(ctx, { sent = false, error = '' } = {}) {
   const p = ctx.doc('page:contact');
   const f = ctx.doc('form:contact');
   const s = ctx.settings;
+  const ui = s.ui || {};
   const c = s.contacts || {};
   const crumbs = [{ name: p.hero?.title || 'Контакты', path: '/contact' }];
   const siteKey = s.notifications?.turnstileSiteKey;
@@ -406,7 +407,7 @@ export function contactPage(ctx, { sent = false, error = '' } = {}) {
       <form id="contact-form" class="form" method="post" action="/api/contact"${attrs({ 'data-sending': f.sendingLabel, 'data-success-title': f.successTitle, 'data-success-text': f.successText, 'data-error': f.errorText })}>
         ${sent ? '' : (f.fields || []).filter((x) => x.name && x.label).map(formField)}
         ${sent ? '' : h`<div class="hp" aria-hidden="true"><label for="f-website">Website</label><input id="f-website" name="website" tabindex="-1" autocomplete="off"></div>
-        <input type="hidden" name="_t" value="${Date.now()}">
+        <input type="hidden" name="_t" value="${Date.now()}"><input type="hidden" name="lang" value="${ctx.locale}">
         ${siteKey ? h`<div class="field"><div class="cf-turnstile" data-sitekey="${siteKey}"></div></div>` : ''}
         <div class="form-actions"><button class="btn btn-primary" type="submit">${f.submitLabel || 'Отправить'}</button></div>`}
         <div id="form-status" class="form-status${sent ? ' ok' : error ? ' err' : ''}" role="status" aria-live="polite"${sent || error ? '' : raw(' hidden')}>
@@ -416,10 +417,10 @@ export function contactPage(ctx, { sent = false, error = '' } = {}) {
     <aside class="contact-card">
       <h2 style="font-size:1.5rem">${p.infoTitle}</h2>
       <ul class="contact-list">
-        ${c.phone ? h`<li><span>Телефон</span><a href="tel:${c.phone.replace(/[^\d+]/g, '')}">${c.phone}</a></li>` : ''}
-        ${c.email ? h`<li><span>E-mail</span><a href="mailto:${c.email}">${c.email}</a></li>` : ''}
-        ${c.address ? h`<li><span>Адрес</span><strong>${c.address}</strong>${c.mapUrl ? h` <a href="${safeUrl(c.mapUrl)}" target="_blank" rel="noopener" style="font-weight:400;font-size:15px;display:block">На карте</a>` : ''}</li>` : ''}
-        ${c.hours ? h`<li><span>Часы работы</span><strong>${c.hours}</strong></li>` : ''}
+        ${c.phone ? h`<li><span>${ui.phoneLabel || 'Телефон'}</span><a href="tel:${c.phone.replace(/[^\d+]/g, '')}">${c.phone}</a></li>` : ''}
+        ${c.email ? h`<li><span>${ui.emailLabel || 'E-mail'}</span><a href="mailto:${c.email}">${c.email}</a></li>` : ''}
+        ${c.address ? h`<li><span>${ui.addressLabel || 'Адрес'}</span><strong>${c.address}</strong>${c.mapUrl ? h` <a href="${safeUrl(c.mapUrl)}" target="_blank" rel="noopener" style="font-weight:400;font-size:15px;display:block">${ui.mapLabel || 'На карте'}</a>` : ''}</li>` : ''}
+        ${c.hours ? h`<li><span>${ui.hoursLabel || 'Часы работы'}</span><strong>${c.hours}</strong></li>` : ''}
       </ul>
       ${p.infoText ? h`<div class="prose" style="font-size:1rem">${md(p.infoText)}</div>` : ''}
     </aside>

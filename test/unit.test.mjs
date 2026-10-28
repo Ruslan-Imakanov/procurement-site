@@ -6,6 +6,8 @@ import { formatNumber, formatFilename, counterKey } from '../src/lib/dms.js';
 import { slugify, deepMerge, jsonForScript, h, raw, safeUrl } from '../src/lib/util.js';
 import { SCHEMAS } from '../src/schemas.js';
 import { SEED_DOCS, SEED_ENTRIES } from '../src/seed.js';
+import { SEED_I18N } from '../src/seed-i18n.js';
+import { overlay, fmtDateLong } from '../src/lib/util.js';
 import { SINGLETONS, COLLECTIONS, SLUG_TYPES } from '../src/content-types.js';
 
 test('markdown: экранирует HTML и опасные ссылки', () => {
@@ -94,4 +96,33 @@ test('стартовый контент соответствует схемам'
     checkAgainst(SCHEMAS[e.type], e.data, `${e.type}:${e.data.slug || e.data.name}`);
   }
   for (const t of SLUG_TYPES) assert.ok(SCHEMAS[t].properties.slug, `${t} без slug`);
+});
+
+test('переводы: структура совпадает со схемами и русским контентом', () => {
+  for (const loc of ['kk', 'en']) {
+    const t = SEED_I18N[loc];
+    for (const [key, data] of Object.entries(t.docs)) {
+      assert.ok(SCHEMAS[key], `${loc}: нет схемы ${key}`);
+      checkAgainst(SCHEMAS[key], data, `${loc}:${key}`);
+      // списки не длиннее русских
+      const ru = SEED_DOCS[key];
+      const walk = (a, b, path) => {
+        if (Array.isArray(a)) { assert.ok(a.length <= (b?.length ?? 0), `${loc}:${path}: список длиннее русского`); a.forEach((x, i) => walk(x, b?.[i], `${path}[${i}]`)); }
+        else if (a && typeof a === 'object') for (const k of Object.keys(a)) walk(a[k], b?.[k], `${path}.${k}`);
+      };
+      walk(data, ru, key);
+    }
+    for (const [k, data] of Object.entries(t.entries)) {
+      const [type, slug] = k.split(/:(.+)/);
+      const e = SEED_ENTRIES.find((x) => x.type === type && (x.data.slug === slug || x.data.name === slug));
+      assert.ok(e, `${loc}: нет русской записи для ${k}`);
+      checkAgainst(SCHEMAS[type], data, `${loc}:${k}`);
+    }
+  }
+});
+
+test('overlay: пустое — из русского, числа и флажки — из русского', () => {
+  const ru = { a: 'x', b: [{ t: '1' }, { t: '2' }], n: 5, f: true };
+  assert.deepEqual(overlay(ru, { a: '', b: [{ t: 'u' }], n: 9, f: false }, true), { a: 'x', b: [{ t: 'u' }, { t: '2' }], n: 5, f: true });
+  assert.equal(fmtDateLong('2026-10-27', 'en'), 'October 27, 2026');
 });

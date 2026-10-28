@@ -29,7 +29,7 @@ export const SCHEMAS = {
     siteName: str('Название компании'),
     tagline: str('Слоган (рядом с логотипом и в футере)'),
     logo: img('Логотип', { description: 'SVG или PNG с прозрачным фоном. Пусто — выводится название текстом' }),
-    siteUrl: str('Основной адрес сайта', { description: 'Например https://example.com — для canonical, sitemap и разметки. Пусто — текущий адрес' }),
+    siteUrl: str('Основной адрес сайта', { 'x-notranslate': true, description: 'Например https://example.com — для canonical, sitemap и разметки. Пусто — текущий адрес' }),
     contacts: obj('Контакты', {
       phone: str('Телефон'), email: str('E-mail'), address: text('Адрес'), hours: str('Часы работы'),
       mapUrl: str('Ссылка на карту'),
@@ -78,6 +78,10 @@ export const SCHEMAS = {
       backToCases: str('«← Ко всем проектам»'), servicesMenu: str('Заголовок блока услуг в подвале'),
       contactsMenu: str('Заголовок блока контактов в подвале'), menuLabel: str('Кнопка меню на телефоне'),
       notFoundTitle: str('Заголовок страницы 404'), notFoundText: text('Текст страницы 404'), homeLabel: str('Крошки: «Главная»'),
+      skipLabel: str('Ссылка «Перейти к содержимому»'), crumbsLabel: str('Подпись навигации-крошек'), mainMenuLabel: str('Подпись главного меню'),
+      cookieLabel: str('Подпись окна cookie'), phoneLabel: str('«Телефон»'), emailLabel: str('«E-mail»'), addressLabel: str('«Адрес»'),
+      hoursLabel: str('«Часы работы»'), mapLabel: str('«На карте»'), profileLabel: str('«Профиль» (у сотрудника)'), topicsLabel: str('Подпись фильтра тем'),
+      clientsLabel: str('Подпись блока клиентов'), otherServices: str('Заголовок «Другие специализации»'),
       downloadLabel: str('Кнопка «Скачать»'), minRead: str('Подпись времени чтения', { description: '{n} — минуты' }),
     }, { 'x-collapsed': true }),
   }),
@@ -167,8 +171,8 @@ export const SCHEMAS = {
 
   service: obj('Специализация', {
     title: str('Название'),
-    slug: str('Адрес страницы', { format: 'slug', description: '/services/<адрес>' }),
-    icon: str('Иконка', { enum: ICONS }),
+    slug: str('Адрес страницы', { format: 'slug', 'x-notranslate': true, description: '/services/<адрес>' }),
+    icon: str('Иконка', { enum: ICONS, 'x-notranslate': true }),
     excerpt: text('Краткое описание для карточки'),
     hero: obj('Шапка', { eyebrow: str('Надзаголовок'), subtitle: text('Подзаголовок') }),
     image: img('Изображение'),
@@ -184,7 +188,7 @@ export const SCHEMAS = {
 
   article: obj('Статья', {
     title: str('Заголовок'),
-    slug: str('Адрес страницы', { format: 'slug', description: '/insights/<адрес>' }),
+    slug: str('Адрес страницы', { format: 'slug', 'x-notranslate': true, description: '/insights/<адрес>' }),
     date: str('Дата публикации', { format: 'date' }),
     author: str('Автор'),
     category: str('Рубрика'),
@@ -196,7 +200,7 @@ export const SCHEMAS = {
 
   case: obj('Пример проекта', {
     title: str('Заголовок'),
-    slug: str('Адрес страницы', { format: 'slug', description: '/cases/<адрес>' }),
+    slug: str('Адрес страницы', { format: 'slug', 'x-notranslate': true, description: '/cases/<адрес>' }),
     tagline: str('Слоган'),
     industry: str('Отрасль'),
     summary: text('Резюме (задача клиента)'),
@@ -215,8 +219,8 @@ export const SCHEMAS = {
   }),
 
   hero: obj('Баннер по региону', {
-    name: str('Название (для себя)'),
-    regions: str('Страны / регионы', { description: 'Коды стран через запятую (KZ, UZ, RU…) или континентов (EU, AS, NA, SA, AF, OC). * — для всех остальных' }),
+    name: str('Название (для себя)', { 'x-notranslate': true }),
+    regions: str('Страны / регионы', { 'x-notranslate': true, description: 'Коды стран через запятую (KZ, UZ, RU…) или континентов (EU, AS, NA, SA, AF, OC). * — для всех остальных' }),
     image: img('Фоновое изображение', { description: 'Широкое, от 1920 px. Текст поверх читается лучше на тёмных снимках' }),
     title: str('Заголовок для региона (необязательно)'),
     subtitle: text('Подзаголовок для региона (необязательно)'),
@@ -224,7 +228,7 @@ export const SCHEMAS = {
 
   page: obj('Дополнительная страница', {
     title: str('Заголовок'),
-    slug: str('Адрес страницы', { format: 'slug', description: '/<адрес>, например privacy' }),
+    slug: str('Адрес страницы', { format: 'slug', 'x-notranslate': true, description: '/<адрес>, например privacy' }),
     body: md('Текст'),
     showInFooter: bool('Ссылка в подвале'),
     seo,

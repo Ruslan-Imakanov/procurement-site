@@ -41,12 +41,20 @@ export function slugify(s, max = 60) {
   return translit(s).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max).replace(/-+$/g, '');
 }
 
-const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-// '2026-10-27' → '27 октября 2026'
-export function fmtDateLong(iso) {
+export const LOCALES = ['ru', 'kk', 'en'];
+export const LOCALE_NAMES = { ru: 'Рус', kk: 'Қаз', en: 'Eng' };
+export const localePrefix = (loc) => (loc && loc !== 'ru' ? `/${loc}` : '');
+const MONTHS = {
+  ru: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
+  kk: ['қаңтар', 'ақпан', 'наурыз', 'сәуір', 'мамыр', 'маусым', 'шілде', 'тамыз', 'қыркүйек', 'қазан', 'қараша', 'желтоқсан'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+};
+// '2026-10-27' → '27 октября 2026' / '27 қазан 2026' / 'October 27, 2026'
+export function fmtDateLong(iso, loc = 'ru') {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
   if (!m) return '';
-  return `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}`;
+  const month = (MONTHS[loc] || MONTHS.ru)[Number(m[2]) - 1];
+  return loc === 'en' ? `${month} ${Number(m[3])}, ${m[1]}` : `${Number(m[3])} ${month} ${m[1]}`;
 }
 // '2026-10-27' → '27.10.2026'
 export function fmtDateShort(iso) {
@@ -103,4 +111,25 @@ export function deepMerge(base, over) {
   const out = { ...base };
   for (const k of Object.keys(over)) out[k] = deepMerge(base[k], over[k]);
   return out;
+}
+
+// Перевод хранится как «наложение» на русский документ: пустые строки и пустые списки означают
+// «взять русский текст». Числа и флажки всегда берутся из русской версии.
+// strict — длина списков равна русской (для показа на сайте); иначе — максимальная (для слияния наложений).
+export function overlay(base, over, strict = false) {
+  if (over === undefined || over === null) return base;
+  if (base === undefined) return over;
+  if (Array.isArray(over)) {
+    if (!Array.isArray(base)) return base;
+    const n = strict ? base.length : Math.max(base.length, over.length);
+    return Array.from({ length: n }, (_, i) => overlay(base[i], over[i], strict));
+  }
+  if (typeof over === 'object') {
+    if (!base || typeof base !== 'object' || Array.isArray(base)) return base;
+    const out = { ...base };
+    for (const k of Object.keys(over)) out[k] = overlay(base[k], over[k], strict);
+    return out;
+  }
+  if (typeof over === 'string') return over.trim() ? over : base;
+  return base;
 }

@@ -67,7 +67,7 @@ async function api(method, path, body, { raw } = {}) {
 }
 
 // ---------- состояние ----------
-const state = { user: null, counts: {}, siteName: '', schemas: null, media: null, services: null, dirty: false, save: null, lastHash: '' };
+const state = { translating: false, user: null, counts: {}, siteName: '', schemas: null, media: null, services: null, dirty: false, save: null, lastHash: '' };
 
 const DOC_TITLES = {
   'page:home': 'Главная', 'page:about': 'О нас', 'page:services': 'Услуги', 'page:insights': 'Аналитика',
@@ -179,6 +179,34 @@ function pickMedia(onPick) {
   const dlg = modal('Медиатека', el('div', null, el('div', { class: 'row' }, el('label', { class: 'btn' }, 'Загрузить новое…', input)), grid), { wide: true });
   loadMedia().then(fill).catch((e) => toast(e.message, 'err'));
 }
+
+// ---------- переводы ----------
+const LANGS = [['', 'Рус'], ['kk', 'Қаз'], ['en', 'Eng']];
+const NOTR_KEYS = new Set(['href', 'url', 'notifications', 'dms', 'indexing', 'casesEnabled', 'siteUrl', 'ga4Id', 'showOnHome']);
+const NOTR_FORMATS = new Set(['slug', 'services', 'json', 'date']);
+
+// Пустая «болванка» перевода: структура и длина списков как в русской версии, строки пустые.
+function skeleton(schema, base) {
+  if (schema.type === 'object') {
+    if (schema.format === 'image') return { id: '', alt: '' };
+    return Object.fromEntries(Object.entries(schema.properties || {}).map(([k, s]) => [k, skeleton(s, base?.[k])]));
+  }
+  if (schema.type === 'array') return (Array.isArray(base) ? base : []).map((b) => skeleton(schema.items || { type: 'string' }, b));
+  if (schema.type === 'boolean') return base ?? false;
+  if (schema.type === 'number') return base ?? null;
+  return '';
+}
+function fillFrom(sk, over) {
+  if (over === undefined || over === null) return sk;
+  if (Array.isArray(sk)) return sk.map((x, i) => fillFrom(x, Array.isArray(over) ? over[i] : undefined));
+  if (sk && typeof sk === 'object') return Object.fromEntries(Object.entries(sk).map(([k, v]) => [k, fillFrom(v, over[k])]));
+  return typeof over === 'string' && typeof sk === 'string' ? over : sk;
+}
+function langTabs(current, hrefFor) {
+  return el('div', { class: 'lang-tabs', role: 'tablist', 'aria-label': 'Язык' }, LANGS.map(([code, label]) =>
+    el('a', { class: `lang-tab${code === current ? ' active' : ''}`, href: hrefFor(code), role: 'tab', 'aria-selected': code === current ? 'true' : 'false' }, label)));
+}
+const translateHint = (loc) => el('p', { class: 'hint translate-hint' }, `Перевод на ${loc === 'kk' ? 'казахский' : 'английский'}. Пустое поле на сайте показывается по-русски. Количество пунктов в списках, ссылки, числа и галочки берутся из русской версии.`);
 
 // ---------- генерация формы по схеме ----------
 function fieldWrap(schema, control) {
@@ -315,19 +343,19 @@ function arrayInput(schema, holder, key) {
   const render = () => {
     const rows = arr.map((_, i) => {
       const move = (d) => { const j = i + d; [arr[i], arr[j]] = [arr[j], arr[i]]; setDirty(); render(); };
-      const tools = el('span', { class: 'array-tools' },
+      const tools = state.translating ? el('span') : el('span', { class: 'array-tools' },
         el('button', { type: 'button', class: 'icon-btn', title: 'Выше', 'aria-label': 'Выше', disabled: i === 0, onclick: (e) => { e.preventDefault(); move(-1); } }, '↑'),
         el('button', { type: 'button', class: 'icon-btn', title: 'Ниже', 'aria-label': 'Ниже', disabled: i === arr.length - 1, onclick: (e) => { e.preventDefault(); move(1); } }, '↓'),
         el('button', { type: 'button', class: 'icon-btn danger', title: 'Удалить', 'aria-label': 'Удалить', onclick: (e) => { e.preventDefault(); if (confirm('Удалить элемент?')) { arr.splice(i, 1); setDirty(); render(); } } }, '✕'));
       if (item.type === 'object' && !item['x-inline']) {
-        return el('details', { class: 'array-item', open: arr.length <= 3 || !summary(arr[i]) },
+        return el('details', { class: 'array-item', open: state.translating || arr.length <= 3 || !summary(arr[i]) },
           el('summary', null, el('span', { class: 'array-num' }, i + 1), el('span', { class: 'array-sum' }, summary(arr[i]) || '(пусто)'), tools),
           el('div', { class: 'array-body' }, objectFields(item, arr[i])));
       }
       return el('div', { class: 'array-item array-row' }, el('span', { class: 'array-num' }, i + 1),
         el('div', { class: 'array-body' }, item.type === 'object' ? objectFields(item, arr[i], { inline: true }) : fieldControl(item, arr, i)), tools);
     });
-    box.replaceChildren(...rows, el('button', {
+    box.replaceChildren(...rows, state.translating ? null : el('button', {
       type: 'button', class: 'btn btn-sm', onclick: () => { arr.push(emptyFrom(item)); setDirty(); render(); },
     }, `+ Добавить${item.title ? `: ${item.title.toLowerCase()}` : ''}`));
   };
@@ -364,7 +392,12 @@ function fieldControl(schema, holder, key) {
 
 const isGroup = (s) => s.type === 'object' && s.format !== 'image';
 
+function untranslatable(schema, key) {
+  return state.translating && (schema['x-notranslate'] || NOTR_KEYS.has(key) || NOTR_FORMATS.has(schema.format) || schema.type === 'boolean' || schema.type === 'number' || schema.enum);
+}
+
 function field(schema, holder, key, { top } = {}) {
+  if (untranslatable(schema, key)) return null;
   const control = fieldControl(schema, holder, key);
   if (schema.type === 'boolean') return el('div', { class: 'field' }, control, schema.description ? el('div', { class: 'hint' }, schema.description) : null);
   if (isGroup(schema)) {
@@ -388,6 +421,7 @@ function rootForm(schema, model) {
   const simple = [];
   const panels = [];
   for (const [k, s] of Object.entries(schema.properties || {})) {
+    if (untranslatable(s, k)) continue;
     if (isGroup(s)) panels.push(field(s, model, k, { top: true }));
     else if (s.type === 'array' || s.format === 'markdown') {
       panels.push(el('section', { class: 'panel' }, el('h2', null, s.title), s.description ? el('p', { class: 'hint' }, s.description) : null, fieldControl(s, model, k)));
@@ -427,10 +461,14 @@ async function viewDashboard(main) {
 }
 
 async function viewDoc(main, key) {
-  const [schemas, doc] = await Promise.all([loadSchemas(), api('GET', `/docs/${encodeURIComponent(key)}`)]);
-  const schema = schemas[key]?.schema;
+  const tm = /^(kk|en):(.+)$/.exec(key);
+  const loc = tm ? tm[1] : '';
+  const baseKey = tm ? tm[2] : key;
+  const [schemas, doc, baseDoc] = await Promise.all([loadSchemas(), api('GET', `/docs/${encodeURIComponent(key)}`), loc ? api('GET', `/docs/${encodeURIComponent(baseKey)}`) : null]);
+  const schema = schemas[baseKey]?.schema;
   if (!schema) throw new Error('Нет схемы для этого раздела');
-  let model = clone(doc.data) || {};
+  state.translating = !!loc;
+  let model = loc ? fillFrom(skeleton(schema, baseDoc.data), doc.data) : clone(doc.data) || {};
   const formBox = el('div');
   const renderForm = () => formBox.replaceChildren(rootForm(schema, model));
   let rawMode = false;
@@ -452,7 +490,7 @@ async function viewDoc(main, key) {
     try {
       if (rawMode) model = JSON.parse(rawArea.value);
       const r = await api('PUT', `/docs/${encodeURIComponent(key)}`, { data: model });
-      model = clone(r.data);
+      if (!loc) model = clone(r.data);
       setDirty(false);
       if (rawMode) { rawMode = false; rawBtn.textContent = 'JSON'; }
       renderForm();
@@ -463,7 +501,9 @@ async function viewDoc(main, key) {
   state.save = save;
   renderForm();
   main.replaceChildren(
-    header(DOC_TITLES[key] || schema.title, PUBLIC_PATH[key] ? el('a', { class: 'btn', href: PUBLIC_PATH[key], target: '_blank' }, 'Открыть на сайте ↗') : null, isAdmin() ? rawBtn : null),
+    header(DOC_TITLES[baseKey] || schema.title, PUBLIC_PATH[baseKey] ? el('a', { class: 'btn', href: (loc ? `/${loc}` : '') + (PUBLIC_PATH[baseKey] === '/' && loc ? '' : PUBLIC_PATH[baseKey]), target: '_blank' }, 'Открыть на сайте ↗') : null, isAdmin() ? rawBtn : null),
+    langTabs(loc, (l) => `#/doc/${l ? `${l}:` : ''}${baseKey}`),
+    loc ? translateHint(loc) : null,
     formBox,
     saveBar([el('button', { type: 'button', class: 'btn btn-primary', onclick: save }, 'Сохранить')]),
   );
@@ -506,16 +546,27 @@ async function viewList(main, type) {
   main.replaceChildren(header(plural, el('a', { class: 'btn btn-primary', href: `#/entry/${type}/new` }, `+ ${single}`)), notes[type] ? el('p', { class: 'hint' }, notes[type]) : null, body);
 }
 
-async function viewEntry(main, type, id) {
+async function viewEntry(main, type, id, loc = '') {
   const schemas = await loadSchemas();
   const schema = schemas[type].schema;
   const isNew = id === 'new';
   let entry = isNew ? { type, status: 'published', data: emptyFrom(schema) } : await api('GET', `/entries/${id}`);
   if (isNew && type === 'article') entry.data.date = new Date().toISOString().slice(0, 10);
-  const model = entry.data;
+  state.translating = !!loc && !isNew;
+  let model = entry.data;
+  if (state.translating) {
+    const tr = await api('GET', `/docs/${loc}:e:${id}`);
+    model = fillFrom(skeleton(schema, entry.data), tr.data);
+  }
   const status = el('select', { value: entry.status, onchange: () => setDirty() }, el('option', { value: 'published' }, 'Опубликовано'), el('option', { value: 'draft' }, 'Черновик'));
   const save = async () => {
     try {
+      if (state.translating) {
+        await api('PUT', `/docs/${loc}:e:${id}`, { data: model });
+        setDirty(false);
+        toast('Перевод сохранён');
+        return;
+      }
       const r = await api('POST', '/entries', { id: isNew ? undefined : entry.id, type, status: status.value, data: model });
       setDirty(false);
       if (type === 'service') state.services = null;
@@ -540,12 +591,15 @@ async function viewEntry(main, type, id) {
   main.replaceChildren(
     header(isNew ? `Новая запись: ${TYPE_TITLES[type][1].toLowerCase()}` : entryTitle(entry),
       el('a', { class: 'btn', href: `#/list/${type}` }, '← К списку'),
-      url ? el('a', { class: 'btn', href: `/__preview/${type}/${entry.id}`, target: '_blank', title: 'Как страница выглядит с последними сохранёнными изменениями, включая черновик' }, 'Предпросмотр ↗') : null,
-      url && entry.status !== 'draft' ? el('a', { class: 'btn', href: url, target: '_blank' }, 'На сайте ↗') : null),
+      url && !loc ? el('a', { class: 'btn', href: `/__preview/${type}/${entry.id}`, target: '_blank', title: 'Как страница выглядит с последними сохранёнными изменениями, включая черновик' }, 'Предпросмотр ↗') : null,
+      url && !loc && entry.status !== 'draft' ? el('a', { class: 'btn', href: url, target: '_blank' }, 'На сайте ↗') : null,
+      url && loc ? el('a', { class: 'btn', href: `/${loc}${url}`, target: '_blank' }, 'На сайте ↗') : null),
+    !isNew && type !== 'client' ? langTabs(loc, (l) => `#/entry/${type}/${id}${l ? `/${l}` : ''}`) : null,
+    state.translating ? translateHint(loc) : null,
     rootForm(schema, model),
-    saveBar([el('label', { class: 'inline-label' }, 'Статус ', status),
-      !isNew ? el('button', { type: 'button', class: 'btn btn-danger-ghost', onclick: del }, 'Удалить') : null,
-      el('button', { type: 'button', class: 'btn btn-primary', onclick: save }, 'Сохранить')]),
+    saveBar([state.translating ? null : el('label', { class: 'inline-label' }, 'Статус ', status),
+      !isNew && !state.translating ? el('button', { type: 'button', class: 'btn btn-danger-ghost', onclick: del }, 'Удалить') : null,
+      el('button', { type: 'button', class: 'btn btn-primary', onclick: save }, state.translating ? 'Сохранить перевод' : 'Сохранить')]),
   );
 }
 
@@ -934,7 +988,8 @@ function renderShell() {
   updateBadges();
 }
 
-function highlightNav(hash) {
+function highlightNav(rawHash) {
+  const hash = rawHash.replace(/\/(kk|en):/, '/').replace(/^(#\/entry\/[a-z]+\/[0-9a-f]+)\/(kk|en)$/, '$1');
   document.querySelectorAll('.side-nav a').forEach((a) => {
     const h = a.dataset.href;
     const listOf = h.startsWith('#/list/') && hash.startsWith(h.replace('#/list/', '#/entry/') + '/');
@@ -949,16 +1004,17 @@ async function router() {
   renderShell();
   highlightNav(hash);
   document.body.classList.remove('menu-open');
-  const [, view, a, b] = hash.split('/');
+  const [, view, a, b, c] = hash.split('/');
   const main = $('#main');
   state.save = null;
+  state.translating = false;
   setDirty(false);
   main.replaceChildren(el('p', { class: 'muted', style: { padding: '24px' } }, 'Загрузка…'));
   try {
     switch (view) {
       case 'doc': await viewDoc(main, decodeURIComponent(a)); break;
       case 'list': await viewList(main, a); break;
-      case 'entry': await viewEntry(main, a, b); break;
+      case 'entry': await viewEntry(main, a, b, c); break;
       case 'media': await viewMedia(main); break;
       case 'documents': await viewDocuments(main, a); break;
       case 'submissions': await viewSubmissions(main); break;

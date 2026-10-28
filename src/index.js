@@ -1,7 +1,7 @@
 // Точка входа Cloudflare Worker: публичные страницы, API админки, медиа, документы, форма заявок.
 
 import { Store, parseAppError } from './store.js';
-import { b64url, sha256hex, esc, fmtDateShort } from './lib/util.js';
+import { b64url, sha256hex, esc, fmtDateShort, overlay, LOCALES, localePrefix } from './lib/util.js';
 import {
   homePage, aboutPage, servicesPage, servicePage, insightsPage, articlePage, casesPage, casePage,
   contactPage, customPage, notFoundPage,
@@ -111,23 +111,30 @@ async function siteAssets(env) {
 
 function makeCtx(snap, request, extra = {}) {
   const url = new URL(request.url);
-  const settings = snap.docs.settings || {};
+  const locale = LOCALES.includes(extra.locale) ? extra.locale : 'ru';
+  const prefix = localePrefix(locale);
+  const ov = snap.i18n?.[locale];
   if (!snap._byType) {
     const byType = {};
     for (const e of snap.entries) (byType[e.type] ||= []).push(e);
     Object.defineProperty(snap, '_byType', { value: byType, enumerable: false });
   }
+  const docCache = {};
+  const doc = (k) => (k in docCache ? docCache[k] : (docCache[k] = ov?.docs?.[k] ? overlay(snap.docs[k] || {}, ov.docs[k], true) : snap.docs[k] || {}));
+  const entCache = {};
+  const entries = (t) => entCache[t] || (entCache[t] = (snap._byType[t] || []).map((e) => (ov?.entries?.[e.id] ? { ...e, data: overlay(e.data, ov.entries[e.id], true) } : e)));
   const geo = (url.searchParams.get('geo') || '').toUpperCase();
   const override = /^[A-Z]{2}$/.test(geo);
+  const origin = (snap.docs.settings?.siteUrl || url.origin).replace(/\/+$/, '');
   return {
-    snap, settings, url,
-    base: (settings.siteUrl || url.origin).replace(/\/+$/, ''),
+    snap, url, locale, prefix, origin,
+    settings: doc('settings'),
+    base: origin + prefix,
     nonce: b64url(crypto.getRandomValues(new Uint8Array(12))),
     country: override ? geo : String(request.cf?.country || '').toUpperCase(),
     continent: override ? '' : String(request.cf?.continent || '').toUpperCase(),
     preview: false,
-    entries: (t) => snap._byType[t] || [],
-    doc: (k) => snap.docs[k] || {},
+    entries, doc,
     ...extra,
   };
 }
@@ -147,10 +154,13 @@ async function currentUser(request, env) {
 // ---------- публичная часть ----------
 async function renderPublic(request, env, ctx, url) {
   const [snap, assets] = await Promise.all([getSnapshot(env, ctx), siteAssets(env)]);
-  const path = url.pathname;
+  let path = url.pathname;
+  let locale = 'ru';
+  const lm = /^\/(kk|en)(\/.*)?$/.exec(path);
+  if (lm) { locale = lm[1]; path = lm[2] || '/'; }
   const wantsPreview = url.searchParams.has('preview');
   const user = wantsPreview ? await currentUser(request, env) : null;
-  const c = makeCtx(snap, request, { preview: !!user, assets });
+  const c = makeCtx(snap, request, { preview: !!user, assets, locale });
   const find = (type, slug) => c.entries(type).find((e) => e.slug === slug);
   const parts = path.split('/').filter(Boolean);
   let html = null;
@@ -197,7 +207,13 @@ function sitemap(snap, base) {
     urls.push(['/cases', '']);
     for (const e of by('case')) urls.push([`/cases/${e.slug}`, e.updated_at]);
   }
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(([p, m]) => `<url><loc>${esc(base + p)}</loc>${m ? `<lastmod>${m.slice(0, 10)}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>`;
+  const loc = (l, p) => base + localePrefix(l) + (p === '/' && l !== 'ru' ? '' : p);
+  const out = [];
+  for (const [p, m] of urls) {
+    const alts = LOCALES.map((l) => `<xhtml:link rel="alternate" hreflang="${l}" href="${esc(loc(l, p))}"/>`).join('') + `<xhtml:link rel="alternate" hreflang="x-default" href="${esc(loc('ru', p))}"/>`;
+    for (const l of LOCALES) out.push(`<url><loc>${esc(loc(l, p))}</loc>${m ? `<lastmod>${m.slice(0, 10)}</lastmod>` : ''}${alts}</url>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${out.join('\n')}\n</urlset>`;
 }
 
 function robots(snap, base) {
@@ -209,14 +225,21 @@ function robots(snap, base) {
 // ---------- форма обратной связи ----------
 async function handleContact(request, env, ctx) {
   const wantsJson = (request.headers.get('Accept') || '').includes('application/json');
-  const back = (q) => Response.redirect(new URL(`/contact?${q}#form-status`, request.url).toString(), 303);
+  let loc = 'ru';
+  const back = (q) => Response.redirect(new URL(`${localePrefix(loc)}/contact?${q}#form-status`, request.url).toString(), 303);
   const fail = (msg, status = 400) => (wantsJson ? json({ error: msg }, status) : back('error=1'));
   const s = store(env);
   const snap = await getSnapshot(env, ctx);
-  const form = snap.docs['form:contact'] || {};
+  let form = snap.docs['form:contact'] || {};
   const settings = snap.docs.settings || {};
   let fd;
   try { fd = await request.formData(); } catch { return fail(form.errorText || 'Ошибка формы'); }
+  const lang = String(fd.get('lang') || '');
+  if (LOCALES.includes(lang) && lang !== 'ru') {
+    loc = lang;
+    const o = snap.i18n?.[lang]?.docs?.['form:contact'];
+    if (o) form = overlay(form, o, true);
+  }
 
   // ловушки для ботов: скрытое поле и слишком быстрая отправка — делаем вид, что всё хорошо
   const t = Number(fd.get('_t') || 0);
@@ -335,8 +358,8 @@ async function adminApi(request, env, ctx, url) {
   // одиночные документы
   if (seg[0] === 'docs' && seg[1]) {
     const key = decodeURIComponent(seg[1]);
-    if (method === 'GET') return json({ key, data: await s.getDoc(key) });
-    if (method === 'PUT') { if (key === 'settings') adminOnly(); const b = await readJson(request); return changed({ key, data: await s.putDoc(key, b.data, user) }); }
+    if (method === 'GET') return json({ key, data: /^(kk|en):/.test(key) ? await s.getTranslation(key) : await s.getDoc(key) });
+    if (method === 'PUT') { if (/(^|:)settings$/.test(key)) adminOnly(); const b = await readJson(request); return changed({ key, data: await s.putDoc(key, b.data, user) }); }
   }
 
   // коллекции
