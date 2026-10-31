@@ -1,0 +1,1458 @@
+<meta charset="utf-8">
+<title>Распил</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@600;700;800&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Макет: тёмный «еловый» рельс навигации слева, рабочее поле — журнал лесопилки.
+   Акцент — жёлтая бирка с торца бревна, второй цвет — синяя лесная маркировка. */
+:root {
+  --bg: #ECEFEA;
+  --panel: #FAFBF8;
+  --panel-2: #F2F4EF;
+  --ink: #16211C;
+  --muted: #5B6A61;
+  --line: #D2D9D0;
+  --rail: #13251D;
+  --rail-ink: #DCE6DF;
+  --rail-muted: #8FA597;
+  --tag: #F2B705;
+  --tag-ink: #1B1A0F;
+  --mark: #1F5FD1;
+  --wood: #C07A3A;
+  --wood-pale: #E9D3B8;
+  --good: #23855A;
+  --warn: #C96A12;
+  --bad: #C2362B;
+  --good-bg: #DDEFE5;
+  --warn-bg: #FBE9D3;
+  --bad-bg: #F7DDDA;
+  --shadow: 0 1px 2px rgba(19, 37, 29, .06), 0 8px 24px rgba(19, 37, 29, .07);
+  --f-display: "Alumni Sans", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "Golos Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1612; --panel: #15211B; --panel-2: #1A2821; --ink: #E4ECE6; --muted: #93A59A; --line: #2A3B32;
+    --rail: #09110D; --rail-ink: #DCE6DF; --rail-muted: #7F9688;
+    --mark: #7CA5FF; --wood: #D8975A; --wood-pale: #4A3826;
+    --good: #4CC28A; --warn: #F0A050; --bad: #F07A6E;
+    --good-bg: #173527; --warn-bg: #3A2A15; --bad-bg: #3D1E1B;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1612; --panel: #15211B; --panel-2: #1A2821; --ink: #E4ECE6; --muted: #93A59A; --line: #2A3B32;
+  --rail: #09110D; --rail-ink: #DCE6DF; --rail-muted: #7F9688;
+  --mark: #7CA5FF; --wood: #D8975A; --wood-pale: #4A3826;
+  --good: #4CC28A; --warn: #F0A050; --bad: #F07A6E;
+  --good-bg: #173527; --warn-bg: #3A2A15; --bad-bg: #3D1E1B;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); -webkit-font-smoothing: antialiased; }
+* { box-sizing: border-box; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--mark); }
+:focus-visible { outline: 2px solid var(--mark); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+.num, td.n, .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- каркас */
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 100%; }
+.rail { background: var(--rail); color: var(--rail-ink); position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 22px 14px 18px; gap: 18px; overflow-y: auto; }
+.brand { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+.brand b { font: 800 40px/0.9 var(--f-display); letter-spacing: .04em; }
+.brand svg { width: 132px; height: 10px; color: var(--tag); }
+.brand small { color: var(--rail-muted); font-size: 12px; letter-spacing: .02em; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav .grp { font: 700 12px/1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--rail-muted); padding: 14px 10px 6px; }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 4px; color: var(--rail-ink); text-decoration: none; font-weight: 500; font-size: 14.5px; }
+.nav a svg { width: 18px; height: 18px; flex: none; opacity: .75; }
+.nav a:hover { background: rgba(255,255,255,.06); }
+.nav a[aria-current="page"] { background: var(--tag); color: var(--tag-ink); }
+.nav a[aria-current="page"] svg { opacity: 1; }
+.nav a .cnt { margin-left: auto; font: 600 11px/1 var(--f-mono); background: var(--bad); color: #fff; border-radius: 9px; padding: 3px 6px; }
+.rail-foot { margin-top: auto; font-size: 12px; color: var(--rail-muted); padding: 0 8px; display: flex; flex-direction: column; gap: 6px; }
+.rail-foot .who { display: flex; align-items: center; gap: 8px; color: var(--rail-ink); }
+.rail-foot img { width: 22px; height: 22px; border-radius: 50%; }
+
+main { min-width: 0; padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px)); padding-block: 22px 80px; }
+.top { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.top h1 { font: 800 46px/0.95 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.top .sub { color: var(--muted); font-size: 14px; margin-top: 4px; }
+.top .tools { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 4px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font-weight: 500; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn.tag { background: var(--tag); color: var(--tag-ink); border-color: var(--tag); font-weight: 600; }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+.btn.danger.armed { background: var(--bad); color: #fff; }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.sm { min-height: 32px; padding: 0 10px; font-size: 13px; }
+.btn svg { width: 16px; height: 16px; }
+select.month { min-height: 40px; border: 1px solid var(--line); background: var(--panel); border-radius: 4px; padding: 0 10px; font-weight: 500; }
+
+.banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--r); background: var(--panel-2); border: 1px dashed var(--line); margin-bottom: 18px; font-size: 14px; }
+.banner b { font-weight: 600; }
+
+/* ---------- общие блоки */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.g-main { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; min-width: 0; }
+.panel > h2, .sec-h { font: 700 22px/1.1 var(--f-display); letter-spacing: .06em; text-transform: uppercase; display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.panel > h2 small, .sec-h small { font: 400 13px var(--f-body); letter-spacing: 0; text-transform: none; color: var(--muted); }
+.panel > h2 .act, .sec-h .act { margin-left: auto; }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.muted { color: var(--muted); }
+.lbl { font: 700 13px/1.1 var(--f-display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+.kpi { display: flex; flex-direction: column; gap: 6px; }
+.kpi .v { font: 700 44px/0.95 var(--f-display); letter-spacing: .01em; }
+.kpi .v small { font-size: 22px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.kpi .d { font-size: 13px; color: var(--muted); }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.chip.good { background: var(--good-bg); color: var(--good); }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.neutral { background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+.tagno { display: inline-block; background: var(--tag); color: var(--tag-ink); font: 600 11.5px/1 var(--f-mono); padding: 4px 7px 3px; border-radius: 3px 3px 3px 10px; letter-spacing: .02em; }
+.demo-mark { display: inline-block; font: 600 10.5px/1 var(--f-mono); color: var(--muted); border: 1px solid var(--line); padding: 3px 5px; border-radius: 3px; text-transform: uppercase; letter-spacing: .06em; }
+
+/* таблицы */
+.tbl-wrap { overflow-x: auto; margin: 0 -18px; padding: 0 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; font: 700 12.5px/1.2 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th.n, td.n { text-align: right; white-space: nowrap; }
+tbody tr[data-open] { cursor: pointer; }
+tbody tr[data-open]:hover td { background: var(--panel-2); }
+tfoot td { font-weight: 600; border-bottom: 0; }
+.empty { padding: 28px 10px; text-align: center; color: var(--muted); }
+
+/* ---------- сводка */
+.hero { position: relative; border-radius: var(--r); overflow: hidden; color: #F3F1EA; min-height: 300px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 20px; padding: 26px; background: #1B1610 url("img/hero.webp") center 40% / cover no-repeat; }
+.hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, rgba(10,14,11,.9) 0%, rgba(10,14,11,.72) 45%, rgba(10,14,11,.25) 100%); }
+.hero > * { position: relative; }
+.hero .eyebrow { font: 700 14px/1 var(--f-display); letter-spacing: .2em; text-transform: uppercase; color: var(--tag); }
+.hero h2 { font: 800 clamp(40px, 6vw, 72px)/0.9 var(--f-display); letter-spacing: .01em; margin: 10px 0 18px; }
+.hero .facts { display: flex; gap: 28px; flex-wrap: wrap; }
+.hero .facts div { display: flex; flex-direction: column; gap: 2px; }
+.hero .facts b { font: 700 36px/1 var(--f-display); }
+.hero .facts span { font-size: 12.5px; color: #C9CFC9; }
+.yield-box { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.yield-box canvas { width: 190px; height: 190px; }
+.yield-box .yv { font: 800 54px/0.9 var(--f-display); }
+.yield-box .yl { font-size: 12.5px; color: #C9CFC9; text-align: center; }
+
+.alerts { display: flex; flex-direction: column; gap: 8px; }
+.alert { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); }
+.alert .dot { width: 10px; height: 10px; border-radius: 50%; }
+.alert.bad .dot { background: var(--bad); }
+.alert.warn .dot { background: var(--warn); }
+.alert.good .dot { background: var(--good); }
+.alert.info .dot { background: var(--mark); }
+.alert .t { font-weight: 500; font-size: 14px; }
+.alert .s { font-size: 12.5px; color: var(--muted); }
+
+.balance { display: flex; height: 34px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.balance div { display: flex; align-items: center; justify-content: center; font: 600 12px var(--f-mono); color: #fff; min-width: 0; overflow: hidden; white-space: nowrap; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font: 11px var(--f-mono); }
+
+/* полосы-рейтинги */
+.bars { display: flex; flex-direction: column; gap: 10px; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; font-size: 14px; }
+.bar-row .track { grid-column: 1 / -1; height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.bar-row .fill { height: 100%; background: var(--wood); border-radius: 4px; }
+
+/* фото-шапки разделов */
+.photo-band { position: relative; border-radius: var(--r); overflow: hidden; min-height: 132px; padding: 18px 22px; display: flex; align-items: flex-end; color: #F3F1EA; background: #2A2018 center / cover no-repeat; margin-bottom: 16px; }
+.photo-band::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,14,11,.85), rgba(10,14,11,.35)); }
+.photo-band > * { position: relative; }
+.photo-band .facts { display: flex; gap: 30px; flex-wrap: wrap; }
+.photo-band .facts div { display: flex; flex-direction: column; }
+.photo-band b { font: 700 34px/1 var(--f-display); }
+.photo-band span { font-size: 12.5px; color: #C9CFC9; }
+
+/* склад */
+.packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.pack { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pack .name { font-weight: 600; font-size: 14.5px; }
+.pack .boards { height: 64px; display: flex; flex-direction: column-reverse; gap: 2px; justify-content: flex-start; }
+.pack .boards span { display: block; height: 6px; border-radius: 1px; background: linear-gradient(90deg, var(--wood) 0 6px, color-mix(in srgb, var(--wood) 70%, var(--panel)) 6px); }
+.pack .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pack .big { font: 700 34px/1 var(--f-display); }
+
+/* сушка */
+.kilns { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.kiln { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: flex; flex-direction: column; gap: 12px; cursor: pointer; }
+.kiln:hover { border-color: var(--muted); }
+.kiln .mc { font: 700 48px/0.9 var(--f-display); }
+.mc-track { position: relative; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--good) 0%, var(--tag) 45%, var(--wood) 100%); opacity: .9; }
+.mc-track .pin { position: absolute; top: -5px; width: 4px; height: 22px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); }
+.mc-track .goal { position: absolute; top: -3px; height: 18px; border-left: 2px dashed var(--ink); }
+
+/* боли и решения */
+.pains { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.pain { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.pain .q { font: 700 24px/1.05 var(--f-display); letter-spacing: .01em; }
+.pain .fact { font-size: 13.5px; color: var(--muted); }
+.pain .fix { font-size: 14.5px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.pain .fix b { color: var(--good); font-weight: 600; }
+.pain a.go { margin-top: auto; font-weight: 600; text-decoration: none; }
+.offer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border-radius: var(--r); overflow: hidden; background: var(--rail); color: var(--rail-ink); margin-bottom: 18px; }
+.offer .txt { padding: 28px; display: flex; flex-direction: column; gap: 14px; }
+.offer h2 { font: 800 clamp(34px, 4.5vw, 54px)/0.92 var(--f-display); }
+.offer p { margin: 0; color: var(--rail-muted); max-width: 60ch; }
+.offer .img { background: url("img/loader.webp") center / cover no-repeat; min-height: 260px; }
+.ledger { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.ledger div { border: 1px solid var(--line); border-radius: 4px; padding: 12px; background: var(--panel); }
+.ledger b { display: block; font: 700 18px/1.1 var(--f-display); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 4px; }
+.ledger span { font-size: 13px; color: var(--muted); }
+.credits { font-size: 12px; color: var(--muted); margin-top: 26px; }
+.credits a { color: var(--muted); }
+
+/* ---------- лист формы */
+.sheet-back { position: fixed; inset: 0; background: rgba(8, 12, 10, .5); z-index: 40; display: flex; justify-content: flex-end; }
+.sheet { width: min(620px, 100%); height: 100%; background: var(--bg); display: flex; flex-direction: column; box-shadow: var(--shadow); animation: slide .18s ease-out; }
+@keyframes slide { from { transform: translateX(24px); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .sheet { animation: none; } }
+.sheet header { display: flex; align-items: center; gap: 10px; padding: calc(16px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.sheet header h2 { font: 800 30px/1 var(--f-display); text-transform: uppercase; letter-spacing: .03em; }
+.sheet header .x { margin-left: auto; }
+.sheet .body { flex: 1; overflow-y: auto; padding: 18px 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.sheet footer { display: flex; gap: 8px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+.sheet footer .sp { flex: 1; }
+.fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f.full { grid-column: 1 / -1; }
+.f label, .f .lab { font: 700 12.5px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.f input, .f select, .f textarea { min-height: 44px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); padding: 8px 10px; width: 100%; min-width: 0; }
+.f textarea { min-height: 70px; resize: vertical; }
+.f input:focus, .f select:focus, .f textarea:focus { outline: 2px solid var(--mark); outline-offset: -1px; }
+.f .hint { font-size: 12px; color: var(--muted); }
+.rows { display: flex; flex-direction: column; gap: 8px; }
+.rowline { display: grid; gap: 8px; align-items: end; }
+.rowline input, .rowline select { min-height: 42px; border: 1px solid var(--line); border-radius: 4px; background: var(--panel); padding: 6px 8px; width: 100%; min-width: 0; }
+.rowline .calc { font: 600 13px var(--f-mono); color: var(--muted); text-align: right; padding-bottom: 12px; white-space: nowrap; }
+.rl-logs { grid-template-columns: 1fr 1fr 1fr 90px 36px; }
+.rl-out { grid-template-columns: minmax(0, 2.4fr) 1fr 1fr 36px; }
+.rl-sale { grid-template-columns: minmax(0, 2.2fr) 1fr 1.2fr 36px; }
+.rowhead { display: grid; gap: 8px; font: 700 11.5px/1 var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.icon-btn { width: 36px; height: 42px; border: 1px solid var(--line); background: var(--panel); border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.icon-btn:hover { color: var(--bad); border-color: var(--bad); }
+.live { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px; border-radius: var(--r); background: var(--panel); border: 1px solid var(--line); }
+.live canvas { width: 120px; height: 120px; }
+.live .big { font: 800 40px/0.9 var(--f-display); }
+.live dl { margin: 6px 0 0; display: grid; grid-template-columns: auto auto; gap: 2px 12px; font-size: 13px; }
+.live dt { color: var(--muted); }
+.live dd { margin: 0; text-align: right; font-family: var(--f-mono); }
+.crew-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.f .crew-pick label { font: 500 14px/1.2 var(--f-body); letter-spacing: 0; text-transform: none; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); cursor: pointer; font-size: 14px; }
+.f .crew-pick input { accent-color: var(--ink); width: 16px; height: 16px; min-height: 0; padding: 0; flex: none; }
+.f .crew-pick label:has(input:checked) { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.audit { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.audit img { width: 20px; height: 20px; border-radius: 50%; }
+
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 4px; z-index: 60; font-weight: 500; box-shadow: var(--shadow); }
+.fab { display: none; }
+
+.loading { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 80px 16px; color: var(--muted); text-align: center; }
+.loading canvas { width: 120px; height: 120px; }
+
+/* ---------- адаптив */
+@media (max-width: 1100px) {
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g-main { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 860px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--rail); }
+  .rail { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; height: auto; flex-direction: row; align-items: center; padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px)); gap: 10px; overflow: visible; }
+  .brand { padding: 0; flex: none; }
+  .brand b { font-size: 26px; }
+  .brand small, .brand svg, .rail-foot, .nav .grp { display: none; }
+  .nav { flex-direction: row; overflow-x: auto; gap: 4px; scrollbar-width: none; min-width: 0; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { white-space: nowrap; padding: 8px 10px; font-size: 13.5px; }
+  .nav a svg { display: none; }
+  main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 96px; }
+  .top h1 { font-size: 36px; }
+  .top .tools .btn.add { display: none; }
+  .g2, .g3 { grid-template-columns: minmax(0, 1fr); }
+  .hero { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .yield-box { flex-direction: row; justify-content: flex-start; }
+  .yield-box canvas { width: 120px; height: 120px; }
+  .offer { grid-template-columns: minmax(0, 1fr); }
+  .offer .img { min-height: 160px; order: -1; }
+  .fab { display: inline-flex; position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 30; box-shadow: var(--shadow); min-height: 52px; padding: 0 20px; border-radius: 26px; }
+}
+@media (max-width: 520px) {
+  .g4 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .kpi .v { font-size: 34px; }
+  .fgrid { grid-template-columns: minmax(0, 1fr); }
+  .rl-logs { grid-template-columns: 1fr 1fr 1fr 36px; }
+  .rl-logs .calc, .rowhead.rl-logs span:nth-child(4) { display: none; }
+  .hero .facts { gap: 18px; }
+  .hero .facts b { font-size: 28px; }
+  .live { grid-template-columns: minmax(0, 1fr); justify-items: start; }
+}
+</style>
+
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <b>РАСПИЛ</b>
+      <svg viewBox="0 0 132 10" aria-hidden="true"><path fill="currentColor" d="M0 0h132v3L128 10l-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7-4-7-4 7z"/></svg>
+      <small id="mill-name">учёт лесопилки</small>
+    </div>
+    <nav class="nav" id="nav" aria-label="Разделы"></nav>
+    <div class="rail-foot" id="rail-foot"></div>
+  </aside>
+  <main>
+    <div class="top" id="top"></div>
+    <div id="view"><div class="loading"><canvas id="load-log" width="240" height="240"></canvas><div>Открываю журнал лесопилки…</div></div></div>
+  </main>
+</div>
+<button class="btn tag fab" id="fab" type="button" hidden>+ Запись</button>
+<div id="sheet-root"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="demo.js"></script>
+<script>
+(function () {
+'use strict';
+var DEMO = window.RaspilDemo;
+var COLS = ['products', 'people', 'receipts', 'shifts', 'sales', 'expenses', 'drying'];
+var EXP_CATS = ['ГСМ', 'Пилы и заточка', 'Электроэнергия', 'Ремонт техники', 'Транспорт', 'Аренда', 'Оклады', 'Налоги и сборы', 'Лесобилет и делянка', 'Прочее'];
+var SPECIES = ['Сосна', 'Ель', 'Лиственница', 'Кедр', 'Берёза', 'Осина'];
+var KIND = { lumber: 'Доска обрезная', timber: 'Брус', unedged: 'Необрезная', waste: 'Отходы' };
+var MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+var MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+var DEFAULT_SETTINGS = { millName: 'Моя лесопилка', currency: '₸', yieldNorm: 56, unaccountedLimit: 4, discrepancyLimit: 3, saws: ['Ленточная пилорама'] };
+
+var S = {
+  mode: 'loading', // loading | db | local
+  data: { products: [], people: [], receipts: [], shifts: [], sales: [], expenses: [], drying: [] },
+  settings: Object.assign({}, DEFAULT_SETTINGS),
+  loaded: {}, stale: false, month: null, route: 'dashboard',
+  me: null, user: null, db: null, canWrite: true, profiles: {}
+};
+
+/* ---------------- утилиты */
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+var nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+var nf1 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+var nf2 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+var nf3 = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+function num(v) { v = parseFloat(String(v == null ? '' : v).replace(',', '.').replace(/\s/g, '')); return isFinite(v) ? v : 0; }
+function m3(v) { return nf2.format(v || 0); }
+function pct(v) { return nf1.format((v || 0) * 100) + ' %'; }
+function cur() { return S.settings.currency || '₸'; }
+function money(v) { return nf0.format(Math.round(v || 0)) + ' ' + cur(); }
+function moneyShort(v) {
+  var a = Math.abs(v || 0);
+  if (a >= 1e6) return nf1.format(v / 1e6) + ' млн ' + cur();
+  if (a >= 1e4) return nf0.format(v / 1e3) + ' тыс ' + cur();
+  return money(v);
+}
+function todayISO() { return DEMO.ymd(new Date()); }
+function monthOf(d) { return (d || '').slice(0, 7); }
+function monthLabel(m) { if (!m) return ''; var p = m.split('-'); return MONTHS[+p[1] - 1] + ' ' + p[0]; }
+function dateLabel(d) { if (!d) return ''; var p = d.split('-'); return +p[2] + ' ' + MONTHS_GEN[+p[1] - 1]; }
+function shortDate(d) { if (!d) return ''; var p = d.split('-'); return p[2] + '.' + p[1]; }
+function daysBetween(a, b) { return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 864e5); }
+function uid(prefix) { return prefix + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function sum(list, f) { var s = 0; for (var i = 0; i < list.length; i++) s += f(list[i]) || 0; return s; }
+function byDate(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : 0; }
+function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+function product(id) { return S.data.products.filter(function (p) { return p.id === id; })[0]; }
+function person(id) { return S.data.people.filter(function (p) { return p.id === id; })[0]; }
+function pieceVol(p) { return p && p.t && p.w && p.l ? p.t * p.w * p.l / 1e6 : 0; }
+var logVolume = DEMO.logVolume;
+
+/* ---------------- расчёты */
+function outVol(s) { return sum(s.outputs || [], function (o) { return num(o.vol); }); }
+function shiftStats(s) {
+  var lv = num(s.logVolume), out = outVol(s), slab = num(s.slab), dust = num(s.sawdust);
+  var un = lv - out - slab - dust;
+  return { log: lv, out: out, slab: slab, dust: dust, un: un, y: lv ? out / lv : 0, unP: lv ? un / lv : 0 };
+}
+function shiftPay(s) {
+  var out = outVol(s);
+  return (s.crew || []).map(function (id) { var p = person(id); return { id: id, pay: out * (p ? num(p.rate) : 0) }; });
+}
+function receiptCost(r) { return num(r.supplierVolume || r.volume) * num(r.pricePerM3); }
+function receiptDelta(r) { var sv = num(r.supplierVolume), v = num(r.volume); return sv ? (v - sv) / sv : 0; }
+function avgLogPrice(upto) {
+  var rs = S.data.receipts.filter(function (r) { return !upto || r.date <= upto; });
+  var vol = sum(rs, function (r) { return num(r.volume); });
+  return vol ? sum(rs, receiptCost) / vol : 0;
+}
+function inMonth(list, m) { return list.filter(function (x) { return monthOf(x.date) === m; }); }
+
+function stockAll() {
+  var st = {}, log = 0;
+  S.data.products.forEach(function (p) { st[p.id] = 0; });
+  S.data.receipts.forEach(function (r) { log += num(r.volume); });
+  S.data.shifts.forEach(function (s) {
+    log -= num(s.logVolume);
+    (s.outputs || []).forEach(function (o) { st[o.productId] = (st[o.productId] || 0) + num(o.vol); });
+    st.slab = (st.slab || 0) + num(s.slab);
+    st.sawdust = (st.sawdust || 0) + num(s.sawdust);
+  });
+  S.data.sales.forEach(function (z) { (z.items || []).forEach(function (it) { st[it.productId] = (st[it.productId] || 0) - num(it.vol); }); });
+  return { log: log, products: st };
+}
+
+function monthCalc(m) {
+  var sh = inMonth(S.data.shifts, m), rc = inMonth(S.data.receipts, m), sl = inMonth(S.data.sales, m), ex = inMonth(S.data.expenses, m);
+  var log = sum(sh, function (s) { return num(s.logVolume); });
+  var out = sum(sh, outVol), slab = sum(sh, function (s) { return num(s.slab); }), dust = sum(sh, function (s) { return num(s.sawdust); });
+  var payroll = sum(sh, function (s) { return sum(shiftPay(s), function (p) { return p.pay; }); });
+  var revenue = sum(sl, function (z) { return num(z.total); });
+  var wasteRevenue = sum(sl, function (z) { return sum(z.items || [], function (it) { var p = product(it.productId); return p && p.kind === 'waste' ? num(it.vol) * num(it.price) : 0; }); });
+  var received = sum(sl, function (z) { return num(z.paid); });
+  var purchases = sum(rc, receiptCost);
+  var expenses = sum(ex, function (e) { return num(e.amount); });
+  var monthEnd = m + '-31';
+  var rawCost = log * avgLogPrice(monthEnd);
+  var costPerM3 = out ? (rawCost + expenses + payroll) / out : 0;
+  var byCat = {};
+  ex.forEach(function (e) { byCat[e.category] = (byCat[e.category] || 0) + num(e.amount); });
+  return {
+    m: m, shifts: sh, receipts: rc, sales: sl, expensesList: ex,
+    log: log, out: out, slab: slab, dust: dust, un: log - out - slab - dust,
+    y: log ? out / log : 0, payroll: payroll, revenue: revenue, wasteRevenue: wasteRevenue, received: received,
+    purchases: purchases, expenses: expenses, rawCost: rawCost, costPerM3: costPerM3, byCat: byCat,
+    received_m3: sum(rc, function (r) { return num(r.volume); }),
+    profit: revenue - rawCost - expenses - payroll
+  };
+}
+function debts() {
+  var t = todayISO();
+  var list = S.data.sales.filter(function (z) { return num(z.total) - num(z.paid) > 0.5; }).map(function (z) {
+    return { z: z, debt: num(z.total) - num(z.paid), overdue: z.dueDate && z.dueDate < t ? daysBetween(z.dueDate, t) : 0 };
+  });
+  return list.sort(function (a, b) { return b.overdue - a.overdue || b.debt - a.debt; });
+}
+function supplierDebts() {
+  return S.data.receipts.filter(function (r) { return receiptCost(r) - num(r.paid) > 0.5; })
+    .map(function (r) { return { r: r, debt: receiptCost(r) - num(r.paid) }; });
+}
+
+function alerts(m) {
+  var out = [], st = S.settings;
+  var norm = num(st.yieldNorm) / 100, unL = num(st.unaccountedLimit) / 100, dL = num(st.discrepancyLimit) / 100;
+  S.data.receipts.filter(function (r) { return !m || monthOf(r.date) === m; }).forEach(function (r) {
+    var d = receiptDelta(r);
+    if (r.supplierVolume && d < -dL) {
+      var over = (num(r.supplierVolume) - num(r.volume)) * num(r.pricePerM3);
+      out.push({ lvl: 'bad', sort: 1, t: r.supplier + ': по накладной ' + m3(r.supplierVolume) + ' м³, по замеру ' + m3(r.volume) + ' м³', s: dateLabel(r.date) + ' · расхождение ' + pct(d) + ' · переплата ' + money(over), go: ['receipts', r.id] });
+    }
+  });
+  S.data.shifts.filter(function (s) { return !m || monthOf(s.date) === m; }).forEach(function (s) {
+    var x = shiftStats(s);
+    if (x.unP > unL) out.push({ lvl: 'bad', sort: 0, t: 'Смена ' + dateLabel(s.date) + ': не учтено ' + m3(x.un) + ' м³ (' + pct(x.unP) + ')', s: 'Кругляк не сходится с выпуском и отходами. ' + (s.note ? 'Примечание: ' + s.note : 'Проверьте смену.'), go: ['sawing', s.id] });
+    if (x.y < norm - 0.03) out.push({ lvl: 'warn', sort: 2, t: 'Смена ' + dateLabel(s.date) + ': выход ' + pct(x.y) + ' при норме ' + pct(norm), s: (s.saw || '') + ' · бригада: ' + crewNames(s.crew), go: ['sawing', s.id] });
+  });
+  debts().filter(function (d) { return d.overdue > 0; }).forEach(function (d) {
+    out.push({ lvl: 'warn', sort: 3, t: d.z.customer + ' должен ' + money(d.debt), s: 'Отгрузка ' + (d.z.no || '') + ' от ' + dateLabel(d.z.date) + ' · просрочка ' + d.overdue + ' дн.', go: ['sales', d.z.id] });
+  });
+  S.data.drying.filter(function (b) { return b.status !== 'готово' && num(b.mcNow) <= num(b.mcTarget); }).forEach(function (b) {
+    out.push({ lvl: 'good', sort: 4, t: b.chamber + ': партия высохла до ' + nf0.format(b.mcNow) + ' %', s: 'Можно выгружать: ' + (product(b.productId) || {}).name + ', ' + m3(b.vol) + ' м³', go: ['drying', b.id] });
+  });
+  var st2 = stockAll();
+  if (st2.log < 30 && S.data.receipts.length) out.push({ lvl: 'info', sort: 5, t: 'Кругляка осталось на ' + Math.max(0, Math.floor(st2.log / 18)) + ' смен(ы)', s: 'На площадке ' + m3(st2.log) + ' м³. Пора заказывать сырьё.', go: ['receipts'] });
+  return out.sort(function (a, b) { return a.sort - b.sort; });
+}
+function crewNames(ids) { return (ids || []).map(function (id) { var p = person(id); return p ? p.name.split(' ')[0] : '—'; }).join(', ') || '—'; }
+
+/* ---------------- хранилище */
+var LS_KEY = 'raspil-local-v1';
+function lsGet() { try { return JSON.parse(localStorage.getItem(LS_KEY) || 'null'); } catch (e) { return null; } }
+function lsSet() { try { localStorage.setItem(LS_KEY, JSON.stringify({ data: S.data, settings: S.settings })); } catch (e) { } }
+
+function loadLocal() {
+  var saved = lsGet();
+  if (saved && saved.data) { S.data = saved.data; S.settings = Object.assign({}, DEFAULT_SETTINGS, saved.settings); }
+  else { applyDemoLocal(); }
+  COLS.forEach(function (c) { S.loaded[c] = true; });
+  S.loaded.settings = true;
+}
+function applyDemoLocal() {
+  var d = DEMO.makeDemo(todayISO());
+  COLS.forEach(function (c) { S.data[c] = d[c]; });
+  S.settings = Object.assign({}, DEFAULT_SETTINGS, d.settings);
+  lsSet();
+}
+
+function clean(obj) { return JSON.parse(JSON.stringify(obj)); }
+function save(col, rec) {
+  rec = clean(rec);
+  var id = rec.id || uid(col.slice(0, 1));
+  rec.id = id;
+  var prev = S.data[col].filter(function (x) { return x.id === id; })[0];
+  if (!prev) { rec.createdAt = new Date().toISOString(); if (S.me) rec.createdBy = S.me; }
+  else { rec.createdAt = prev.createdAt; rec.createdBy = prev.createdBy; rec.updatedAt = new Date().toISOString(); if (S.me) rec.updatedBy = S.me; }
+  if (S.mode === 'db') {
+    var body = Object.assign({}, rec); delete body.id;
+    return S.db.collection(col).doc(id).set(body).catch(handleWriteError);
+  }
+  var list = S.data[col].filter(function (x) { return x.id !== id; });
+  list.push(rec); S.data[col] = list; lsSet(); render();
+  return Promise.resolve();
+}
+function removeRec(col, id) {
+  if (S.mode === 'db') return S.db.collection(col).doc(id).delete().catch(handleWriteError);
+  S.data[col] = S.data[col].filter(function (x) { return x.id !== id; }); lsSet(); render();
+  return Promise.resolve();
+}
+function saveSettings(obj) {
+  S.settings = Object.assign({}, S.settings, obj);
+  if (S.mode === 'db') return S.db.doc('meta/settings').set(clean(S.settings)).catch(handleWriteError);
+  lsSet(); render(); return Promise.resolve();
+}
+function handleWriteError(e) {
+  var code = e && e.code;
+  if (code === 'invalid_argument') { S.canWrite = false; toast('Нет прав на запись. Попросите владельца дать доступ «Участник» или выше.'); render(); }
+  else if (code === 'quota_exceeded') toast('База заполнена: удалите старые записи.');
+  else toast('Не удалось сохранить. Проверьте связь и повторите.');
+  throw e;
+}
+
+function seedDb() {
+  var d = DEMO.makeDemo(todayISO());
+  var jobs = [];
+  COLS.forEach(function (c) { d[c].forEach(function (rec) { jobs.push([c, rec]); }); });
+  toast('Записываю пример: ' + jobs.length + ' записей…');
+  var i = 0;
+  function next() {
+    var batch = jobs.slice(i, i + 5); i += 5;
+    if (!batch.length) return S.db.doc('meta/settings').set(clean(d.settings)).then(function () { toast('Пример загружен'); });
+    return Promise.all(batch.map(function (j) { var b = Object.assign({}, j[1]); delete b.id; return S.db.collection(j[0]).doc(j[1].id).set(b); })).then(next);
+  }
+  return next().catch(function (e) { handleWriteError(e); });
+}
+function removeDemo() {
+  if (S.mode !== 'db') {
+    COLS.forEach(function (c) { S.data[c] = S.data[c].filter(function (x) { return !x.demo; }); });
+    S.settings = Object.assign({}, DEFAULT_SETTINGS);
+    lsSet(); render(); toast('Примеры удалены'); return;
+  }
+  var jobs = [];
+  COLS.forEach(function (c) { S.data[c].forEach(function (x) { if (x.demo) jobs.push([c, x.id]); }); });
+  var i = 0;
+  function next() {
+    var b = jobs.slice(i, i + 8); i += 8;
+    if (!b.length) return saveSettings(Object.assign({}, S.settings, { demo: false, millName: S.settings.demo ? DEFAULT_SETTINGS.millName : S.settings.millName }));
+    return Promise.all(b.map(function (j) { return S.db.collection(j[0]).doc(j[1]).delete(); })).then(next);
+  }
+  next().then(function () { toast('Примеры удалены'); }).catch(handleWriteError);
+}
+
+/* ---------------- маршруты и навигация */
+var ICONS = {
+  dashboard: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  receipts: '<circle cx="7" cy="12" r="4"/><circle cx="17" cy="12" r="4"/><path d="M7 8h10M7 16h10"/>',
+  sawing: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16M8 6v12M16 6v12"/>',
+  drying: '<path d="M12 3v10"/><circle cx="12" cy="17" r="4"/><path d="M5 6c1.5 1 1.5 3 0 4M19 6c-1.5 1-1.5 3 0 4"/>',
+  stock: '<path d="M3 20h18M4 16h16M5 12h14M6 8h12"/>',
+  sales: '<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+  expenses: '<path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
+  finance: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  payroll: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8h4M19 6v4"/>',
+  refs: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  pains: '<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'
+};
+var ROUTES = [
+  ['grp', 'Сегодня'],
+  ['dashboard', 'Сводка'],
+  ['grp', 'Производство'],
+  ['receipts', 'Приёмка кругляка'],
+  ['sawing', 'Распиловка'],
+  ['drying', 'Сушка'],
+  ['stock', 'Склад'],
+  ['grp', 'Деньги'],
+  ['sales', 'Продажи'],
+  ['expenses', 'Расходы'],
+  ['finance', 'Финансы'],
+  ['payroll', 'Зарплата'],
+  ['grp', 'Система'],
+  ['refs', 'Справочники'],
+  ['pains', 'Почему Распил']
+];
+var TITLES = {
+  dashboard: ['Сводка', 'Вся лесопилка на одном экране'],
+  receipts: ['Приёмка', 'Кругляк: побревенный замер и сверка с накладной'],
+  sawing: ['Распиловка', 'Смены, выход пиломатериала и баланс древесины'],
+  drying: ['Сушка', 'Камеры, партии и влажность'],
+  stock: ['Склад', 'Остатки считаются сами из смен и отгрузок'],
+  sales: ['Продажи', 'Отгрузки, оплаты и долги клиентов'],
+  expenses: ['Расходы', 'ГСМ, пилы, электричество и всё остальное'],
+  finance: ['Финансы', 'Прибыль, себестоимость кубометра и структура затрат'],
+  payroll: ['Зарплата', 'Сдельная оплата по сменам'],
+  refs: ['Справочники', 'Продукция, люди и настройки'],
+  pains: ['Почему Распил', 'Что болит у лесопилок и как мы это закрываем']
+};
+var ADD = { receipts: 'Приёмка', sawing: 'Смена', drying: 'Партия', sales: 'Продажа', expenses: 'Расход', dashboard: 'Смена', stock: 'Смена', payroll: 'Смена' };
+
+function routeFromHash() {
+  var h = (location.hash || '').replace('#', '');
+  return TITLES[h] ? h : 'dashboard';
+}
+window.addEventListener('hashchange', function () { S.route = routeFromHash(); render(); window.scrollTo(0, 0); });
+
+function renderNav() {
+  var alertsCount = S.mode === 'loading' ? 0 : alerts(S.month).filter(function (a) { return a.lvl === 'bad'; }).length;
+  document.getElementById('nav').innerHTML = ROUTES.map(function (r) {
+    if (r[0] === 'grp') return '<div class="grp">' + r[1] + '</div>';
+    var cnt = r[0] === 'dashboard' && alertsCount ? '<span class="cnt">' + alertsCount + '</span>' : '';
+    return '<a href="#' + r[0] + '"' + (S.route === r[0] ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ICONS[r[0]] + '</svg>' + r[1] + cnt + '</a>';
+  }).join('');
+  document.getElementById('mill-name').textContent = S.settings.millName || 'учёт лесопилки';
+  var foot = document.getElementById('rail-foot');
+  var modeTxt = S.mode === 'db' ? 'Общая база · данные видят все, кому открыт доступ' : S.mode === 'local' ? 'Демо-режим · данные только в этом браузере' : 'Подключаюсь…';
+  foot.innerHTML = '<div class="who" id="who"></div><div>' + esc(modeTxt) + '</div>';
+  if (S.user) S.user.me().then(function (me) {
+    var w = document.getElementById('who'); if (!w) return;
+    w.innerHTML = '<img alt="" src="' + esc(me.avatarUrl) + '"><span></span>';
+    w.querySelector('span').textContent = me.name || 'Вы';
+  });
+}
+
+function months() {
+  var set = {};
+  ['receipts', 'shifts', 'sales', 'expenses'].forEach(function (c) { S.data[c].forEach(function (x) { if (x.date) set[monthOf(x.date)] = 1; }); });
+  set[monthOf(todayISO())] = 1;
+  return Object.keys(set).sort().reverse();
+}
+function pickDefaultMonth() {
+  var cm = monthOf(todayISO());
+  if (inMonth(S.data.shifts, cm).length || !S.data.shifts.length) return cm;
+  return S.data.shifts.map(function (s) { return monthOf(s.date); }).sort().pop();
+}
+
+function renderTop() {
+  var t = TITLES[S.route];
+  var monthSel = ['dashboard', 'receipts', 'sawing', 'sales', 'expenses', 'finance', 'payroll'].indexOf(S.route) >= 0;
+  var add = ADD[S.route];
+  var writable = S.canWrite && S.mode !== 'loading';
+  document.getElementById('top').innerHTML =
+    '<div><h1>' + esc(t[0]) + '</h1><div class="sub">' + esc(t[1]) + '</div></div>' +
+    '<div class="tools">' +
+    (monthSel ? '<select class="month" id="month" aria-label="Месяц">' + months().map(function (m) { return '<option value="' + m + '"' + (m === S.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>'; }).join('') + '</select>' : '') +
+    (S.route !== 'pains' && S.route !== 'refs' ? '<button class="btn sm ghost" data-act="csv" type="button">CSV</button>' : '') +
+    (add && writable ? '<button class="btn tag add" data-act="new" data-kind="' + addKind() + '" type="button">+ ' + add + '</button>' : '') +
+    '</div>';
+  var fab = document.getElementById('fab');
+  fab.hidden = !(add && writable);
+  fab.textContent = '+ ' + (add || 'Запись');
+  fab.dataset.act = 'new'; fab.dataset.kind = addKind();
+}
+function addKind() { return { receipts: 'receipt', sawing: 'shift', drying: 'drying', sales: 'sale', expenses: 'expense', dashboard: 'shift', stock: 'shift', payroll: 'shift' }[S.route] || 'shift'; }
+
+/* ---------------- отрисовка: торец бревна */
+function drawLog(canvas, y, opts) {
+  opts = opts || {};
+  var dpr = window.devicePixelRatio || 1;
+  var size = canvas.clientWidth || 120;
+  canvas.width = size * dpr; canvas.height = size * dpr;
+  var c = canvas.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  var R = size / 2 - 2, cx = size / 2, cy = size / 2;
+  c.clearRect(0, 0, size, size);
+  // кора
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.fillStyle = '#4A3322'; c.fill();
+  var r0 = R * 0.92;
+  var grad = c.createRadialGradient(cx, cy, 2, cx, cy, r0);
+  grad.addColorStop(0, '#C98E55'); grad.addColorStop(0.6, '#E2B47F'); grad.addColorStop(1, '#EBCB9C');
+  c.beginPath(); c.arc(cx, cy, r0, 0, Math.PI * 2); c.fillStyle = grad; c.fill();
+  // годовые кольца
+  c.strokeStyle = 'rgba(122, 72, 34, .45)'; c.lineWidth = 0.9;
+  var seed = 7;
+  for (var k = 1; k < 14; k++) {
+    var rr = r0 * k / 14;
+    c.beginPath();
+    for (var a = 0; a <= 64; a++) {
+      var ang = a / 64 * Math.PI * 2;
+      var wob = 1 + 0.025 * Math.sin(ang * 3 + k) + 0.015 * Math.sin(ang * 5 + seed);
+      var x = cx + Math.cos(ang) * rr * wob, yy = cy + Math.sin(ang) * rr * wob;
+      a ? c.lineTo(x, yy) : c.moveTo(x, yy);
+    }
+    c.closePath(); c.stroke();
+  }
+  // схема распила: квадрат с площадью, пропорциональной выходу
+  var yv = Math.max(0, Math.min(y || 0, 0.63));
+  var s = Math.sqrt(yv * Math.PI) * r0;
+  if (s > 4) {
+    var x0 = cx - s / 2, y0 = cy - s / 2;
+    c.save();
+    c.beginPath(); c.arc(cx, cy, r0, 0, Math.PI * 2); c.rect(x0 + s, y0, -s, s); c.fillStyle = 'rgba(15, 20, 16, .42)'; c.fill('evenodd');
+    c.restore();
+    var boards = opts.boards || 5, kerf = Math.max(1.5, s * 0.03);
+    var bh = (s - kerf * (boards - 1)) / boards;
+    var col = opts.color || css('--tag') || '#F2B705';
+    for (var b = 0; b < boards; b++) {
+      c.fillStyle = col; c.globalAlpha = 0.88;
+      c.fillRect(x0, y0 + b * (bh + kerf), s, bh);
+    }
+    c.globalAlpha = 1;
+    c.strokeStyle = 'rgba(20, 16, 10, .55)'; c.lineWidth = 1; c.strokeRect(x0 + .5, y0 + .5, s - 1, s - 1);
+  }
+  // сердцевина
+  c.beginPath(); c.arc(cx, cy, 2, 0, Math.PI * 2); c.fillStyle = '#6B4325'; c.fill();
+}
+function yieldColor(y) {
+  var n = num(S.settings.yieldNorm) / 100;
+  return y >= n ? css('--good') : y >= n - 0.03 ? css('--tag') : css('--bad');
+}
+
+/* ---------------- графики */
+function dailyChart(m) {
+  var sh = inMonth(S.data.shifts, m);
+  var parts = m.split('-'); var days = new Date(+parts[0], +parts[1], 0).getDate();
+  var byDay = {};
+  sh.forEach(function (s) { var d = +s.date.slice(8, 10); var x = byDay[d] || (byDay[d] = { log: 0, out: 0 }); x.log += num(s.logVolume); x.out += outVol(s); });
+  var max = 0; Object.keys(byDay).forEach(function (k) { max = Math.max(max, byDay[k].log); });
+  max = Math.max(10, Math.ceil(max / 5) * 5);
+  var W = 720, H = 220, L = 34, B = 24, T = 10, Rr = 6;
+  var cw = (W - L - Rr) / days, bw = Math.max(4, cw * 0.62);
+  var norm = num(S.settings.yieldNorm) / 100;
+  var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Кругляк и выпуск по дням">';
+  for (var g = 0; g <= 4; g++) {
+    var v = max * g / 4, yy = T + (H - T - B) * (1 - g / 4);
+    svg += '<line x1="' + L + '" x2="' + (W - Rr) + '" y1="' + yy + '" y2="' + yy + '" stroke="' + css('--line') + '" stroke-width="1"/>';
+    svg += '<text x="' + (L - 6) + '" y="' + (yy + 4) + '" text-anchor="end">' + nf0.format(v) + '</text>';
+  }
+  for (var d = 1; d <= days; d++) {
+    var x = L + (d - 1) * cw + (cw - bw) / 2;
+    var it = byDay[d];
+    if (it) {
+      var hl = (H - T - B) * it.log / max, ho = (H - T - B) * it.out / max;
+      var y = it.log ? it.out / it.log : 0;
+      var oc = y < norm - 0.03 ? css('--bad') : css('--wood');
+      svg += '<rect x="' + x + '" y="' + (H - B - hl) + '" width="' + bw + '" height="' + hl + '" fill="' + css('--wood-pale') + '" rx="1.5"><title>' + d + ' число: кругляк ' + m3(it.log) + ' м³, выпуск ' + m3(it.out) + ' м³, выход ' + pct(y) + '</title></rect>';
+      svg += '<rect x="' + x + '" y="' + (H - B - ho) + '" width="' + bw + '" height="' + ho + '" fill="' + oc + '" rx="1.5" pointer-events="none"/>';
+    }
+    if (d === 1 || d % 5 === 0) svg += '<text x="' + (x + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + d + '</text>';
+  }
+  svg += '</svg>';
+  return '<div class="chart">' + svg + '</div><div class="legend"><span><i style="background:var(--wood-pale)"></i>Распилено кругляка, м³</span><span><i style="background:var(--wood)"></i>Выпуск пиломатериала, м³</span><span><i style="background:var(--bad)"></i>Выход ниже нормы</span></div>';
+}
+function balanceBar(c) {
+  if (!c.log) return '<div class="empty">В этом месяце смен ещё нет.</div>';
+  var parts = [
+    ['Пиломатериал', c.out, 'var(--wood)'],
+    ['Горбыль', c.slab, '#8C6A4A'],
+    ['Опил', c.dust, '#B9A27F'],
+    ['Не учтено', Math.max(0, c.un), 'var(--bad)']
+  ];
+  return '<div class="balance">' + parts.map(function (p) {
+    var w = p[1] / c.log * 100; return w > 0.2 ? '<div style="width:' + w + '%;background:' + p[2] + '" title="' + p[0] + ' ' + m3(p[1]) + ' м³">' + (w > 7 ? nf0.format(w) + '%' : '') + '</div>' : '';
+  }).join('') + '</div><div class="legend">' + parts.map(function (p) { return '<span><i style="background:' + p[2] + '"></i>' + p[0] + ' · <b class="num">' + m3(p[1]) + '</b> м³</span>'; }).join('') + '</div>';
+}
+
+/* ---------------- разделы */
+function viewDashboard() {
+  var c = monthCalc(S.month), st = stockAll(), al = alerts(S.month), db = debts();
+  var lumberStock = sum(S.data.products.filter(function (p) { return p.kind !== 'waste'; }), function (p) { return Math.max(0, st.products[p.id] || 0); });
+  var debtSum = sum(db, function (d) { return d.debt; });
+  var overdue = sum(db.filter(function (d) { return d.overdue > 0; }), function (d) { return d.debt; });
+  var supDebt = sum(supplierDebts(), function (d) { return d.debt; });
+  var norm = num(S.settings.yieldNorm);
+  var h = '';
+  h += '<section class="hero"><div><div class="eyebrow">' + esc(monthLabel(S.month)) + ' · ' + esc(S.settings.millName) + (S.settings.demo ? ' <span class="demo-mark" style="color:#C9CFC9;border-color:#5a5f58">пример</span>' : '') + '</div>' +
+    '<h2>' + m3(c.log) + ' м³ кругляка<br>в ' + m3(c.out) + ' м³ доски</h2>' +
+    '<div class="facts"><div><b>' + moneyShort(c.revenue) + '</b><span>выручка</span></div><div><b>' + moneyShort(c.profit) + '</b><span>прибыль</span></div><div><b>' + moneyShort(c.costPerM3) + '</b><span>себестоимость 1 м³</span></div><div><b>' + c.shifts.length + '</b><span>смен</span></div></div></div>' +
+    '<div class="yield-box"><canvas id="hero-log" width="380" height="380" aria-hidden="true"></canvas><div><div class="yv" style="color:' + yieldColor(c.y) + '">' + nf1.format(c.y * 100) + '%</div><div class="yl">выход за месяц<br>норма ' + norm + ' %</div></div></div></section>';
+
+  h += '<div class="grid g4" style="margin-top:16px">' +
+    kpi('Кругляк на площадке', m3(st.log), 'м³', 'хватит на ' + Math.max(0, Math.floor(st.log / 18)) + ' смен') +
+    kpi('Пиломатериал на складе', m3(lumberStock), 'м³', '≈ ' + moneyShort(stockValue(st)) + ' по прайсу') +
+    kpi('Нам должны', moneyShort(debtSum), '', overdue ? '<span class="chip bad">просрочено ' + moneyShort(overdue) + '</span>' : 'просрочек нет') +
+    kpi('Мы должны поставщикам', moneyShort(supDebt), '', supplierDebts().length + ' накладных не оплачено') + '</div>';
+
+  h += '<div class="grid g-main" style="margin-top:16px"><div class="stack">' +
+    '<section class="panel"><h2>Кругляк → доска по дням <small>' + esc(monthLabel(S.month)) + '</small></h2>' + dailyChart(S.month) + '</section>' +
+    '<section class="panel"><h2>Куда ушёл кругляк <small>баланс древесины за месяц</small></h2>' + balanceBar(c) + '</section>' +
+    '</div><section class="panel"><h2>Требует внимания <small>' + al.length + '</small></h2><div class="alerts">' +
+    (al.length ? al.slice(0, 9).map(function (a) {
+      return '<a class="alert ' + a.lvl + '" href="#' + a.go[0] + '" data-act="go" data-route="' + a.go[0] + '" data-id="' + esc(a.go[1] || '') + '" style="text-decoration:none;color:inherit"><span class="dot"></span><span><div class="t">' + esc(a.t) + '</div><div class="s">' + esc(a.s) + '</div></span><span class="muted">›</span></a>';
+    }).join('') : '<div class="empty">Всё сходится. Замечаний нет.</div>') +
+    '</div></section></div>';
+  return h;
+}
+function stockValue(st) { return sum(S.data.products, function (p) { return Math.max(0, st.products[p.id] || 0) * num(p.price); }); }
+function kpi(label, v, unit, d) { return '<div class="panel kpi"><div class="lbl">' + label + '</div><div class="v">' + v + (unit ? '<small>' + unit + '</small>' : '') + '</div><div class="d">' + d + '</div></div>'; }
+
+function photoBand(img, facts) {
+  return '<div class="photo-band" style="background-image:url(img/' + img + '.webp)"><div class="facts">' + facts.map(function (f) { return '<div><b>' + f[0] + '</b><span>' + f[1] + '</span></div>'; }).join('') + '</div></div>';
+}
+function demoMark(x) { return x.demo ? ' <span class="demo-mark">пример</span>' : ''; }
+function table(head, rows, foot) {
+  return '<div class="tbl-wrap"><table><thead><tr>' + head.map(function (hh) { return '<th' + (hh[1] ? ' class="n"' : '') + '>' + hh[0] + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    (rows.length ? rows.join('') : '<tr><td colspan="' + head.length + '" class="empty">Записей пока нет. Нажмите «+», чтобы добавить первую.</td></tr>') +
+    '</tbody>' + (foot ? '<tfoot>' + foot + '</tfoot>' : '') + '</table></div>';
+}
+
+function viewReceipts() {
+  var rc = inMonth(S.data.receipts, S.month).sort(byDate);
+  var vol = sum(rc, function (r) { return num(r.volume); }), sv = sum(rc, function (r) { return num(r.supplierVolume || r.volume); });
+  var cost = sum(rc, receiptCost);
+  var dL = num(S.settings.discrepancyLimit) / 100;
+  var over = sum(rc, function (r) { var d = receiptDelta(r); return d < 0 ? (num(r.supplierVolume) - num(r.volume)) * num(r.pricePerM3) : 0; });
+  var h = photoBand('logs', [[m3(vol) + ' м³', 'принято по замеру'], [m3(sv) + ' м³', 'по накладным'], [moneyShort(cost), 'стоимость'], [moneyShort(over), 'переплата из-за расхождений']]);
+  // по поставщикам
+  var bySup = {};
+  S.data.receipts.forEach(function (r) { var x = bySup[r.supplier] || (bySup[r.supplier] = { v: 0, sv: 0, n: 0 }); x.v += num(r.volume); x.sv += num(r.supplierVolume || r.volume); x.n++; });
+  h += '<div class="grid g-main"><section class="panel"><h2>Журнал приёмки <small>' + rc.length + ' машин</small></h2>' +
+    table([['Дата'], ['Накладная'], ['Поставщик'], ['Порода'], ['Брёвен', 1], ['Замер, м³', 1], ['Накладная, м³', 1], ['Разница', 1]], rc.map(function (r) {
+      var d = receiptDelta(r), n = sum(r.logs || [], function (g) { return num(g.n); });
+      var chip = !r.supplierVolume ? '<span class="chip neutral">—</span>' : d < -dL ? '<span class="chip bad">' + pct(d) + '</span>' : d < -0.01 ? '<span class="chip warn">' + pct(d) + '</span>' : '<span class="chip good">' + pct(d) + '</span>';
+      return '<tr data-open="receipt" data-id="' + esc(r.id) + '"><td>' + shortDate(r.date) + '</td><td><span class="tagno">' + esc(r.doc || '—') + '</span></td><td>' + esc(r.supplier) + demoMark(r) + '</td><td>' + esc(r.species) + '</td><td class="n">' + (n || '—') + '</td><td class="n">' + m3(r.volume) + '</td><td class="n">' + (r.supplierVolume ? m3(r.supplierVolume) : '—') + '</td><td class="n">' + chip + '</td></tr>';
+    }), '<tr><td colspan="5">Итого</td><td class="n num">' + m3(vol) + '</td><td class="n num">' + m3(sv) + '</td><td></td></tr>') + '</section>' +
+    '<section class="panel"><h2>Поставщики <small>за всё время</small></h2><div class="bars">' +
+    Object.keys(bySup).map(function (k) {
+      var x = bySup[k], d = x.sv ? (x.v - x.sv) / x.sv : 0;
+      return '<div class="bar-row"><span>' + esc(k) + '</span><span class="num">' + (d < -dL ? '<span class="chip bad">' + pct(d) + '</span>' : '<span class="chip good">' + pct(d) + '</span>') + '</span><div class="track"><div class="fill" style="width:' + Math.min(100, x.v / Math.max.apply(null, Object.keys(bySup).map(function (q) { return bySup[q].v; })) * 100) + '%"></div></div><span class="muted" style="font-size:12.5px">' + x.n + ' машин · ' + m3(x.v) + ' м³</span></div>';
+    }).join('') + '</div><p class="muted" style="font-size:13px;margin:14px 0 0">Минус — по нашему замеру кубов меньше, чем в накладной. Порог тревоги: ' + num(S.settings.discrepancyLimit) + ' %. Таблицы ГОСТ 2708 сами по себе завышают объём толстых брёвен до 13 %, поэтому побревенный замер — главный аргумент в споре с поставщиком.</p></section></div>';
+  return h;
+}
+
+function viewSawing() {
+  var c = monthCalc(S.month), sh = c.shifts.slice().sort(byDate);
+  var unL = num(S.settings.unaccountedLimit) / 100, norm = num(S.settings.yieldNorm) / 100;
+  var h = photoBand('planks', [[m3(c.log) + ' м³', 'распилено кругляка'], [m3(c.out) + ' м³', 'выпущено пиломатериала'], [pct(c.y), 'средний выход'], [m3(Math.max(0, c.un)) + ' м³', 'не учтено']]);
+  // по пилам и бригадам
+  var by = {};
+  c.shifts.forEach(function (s) {
+    var key = (s.saw || '—') + ' · ' + crewNames(s.crew);
+    var x = by[key] || (by[key] = { log: 0, out: 0, n: 0 }); x.log += num(s.logVolume); x.out += outVol(s); x.n++;
+  });
+  h += '<div class="grid g-main"><section class="panel"><h2>Смены <small>' + sh.length + '</small></h2>' +
+    table([['Дата'], ['Пила'], ['Бригада'], ['Кругляк', 1], ['Выпуск', 1], ['Выход', 1], ['Не учтено', 1]], sh.map(function (s) {
+      var x = shiftStats(s);
+      var yc = x.y < norm - 0.03 ? 'bad' : x.y < norm ? 'warn' : 'good';
+      var uc = x.unP > unL ? 'bad' : x.unP > unL / 2 ? 'warn' : 'good';
+      return '<tr data-open="shift" data-id="' + esc(s.id) + '"><td>' + shortDate(s.date) + demoMark(s) + '</td><td>' + esc(s.saw) + '</td><td>' + esc(crewNames(s.crew)) + '</td><td class="n num">' + m3(x.log) + '</td><td class="n num">' + m3(x.out) + '</td><td class="n"><span class="chip ' + yc + '">' + pct(x.y) + '</span></td><td class="n"><span class="chip ' + uc + '">' + pct(x.unP) + '</span></td></tr>';
+    }), '<tr><td colspan="3">Итого</td><td class="n num">' + m3(c.log) + '</td><td class="n num">' + m3(c.out) + '</td><td class="n num">' + pct(c.y) + '</td><td></td></tr>') + '</section>' +
+    '<div class="stack"><section class="panel"><h2>Выход по пилам и бригадам</h2><div class="bars">' +
+    Object.keys(by).sort(function (a, b) { return by[b].out / by[b].log - by[a].out / by[a].log; }).map(function (k) {
+      var x = by[k], y = x.out / x.log;
+      return '<div class="bar-row"><span>' + esc(k) + '</span><span class="num"><b>' + pct(y) + '</b></span><div class="track"><div class="fill" style="width:' + Math.min(100, y / 0.7 * 100) + '%;background:' + yieldColor(y) + '"></div></div><span class="muted" style="font-size:12.5px">' + x.n + ' смен · ' + m3(x.log) + ' м³ кругляка</span></div>';
+    }).join('') + '</div><p class="muted" style="font-size:13px;margin:14px 0 0">Разница в 4–5 % выхода на 400 м³ кругляка в месяц — это 16–20 м³ доски, около ' + moneyShort(18 * avgPrice()) + '.</p></section>' +
+    '<section class="panel"><h2>Баланс древесины</h2>' + balanceBar(c) + '</section></div></div>';
+  return h;
+}
+function avgPrice() { var ps = S.data.products.filter(function (p) { return p.kind !== 'waste'; }); return ps.length ? sum(ps, function (p) { return num(p.price); }) / ps.length : 0; }
+
+function viewDrying() {
+  var list = S.data.drying.slice().sort(function (a, b) { return (a.status === 'готово') - (b.status === 'готово') || (a.start < b.start ? 1 : -1); });
+  var active = list.filter(function (b) { return b.status !== 'готово'; });
+  var h = '<div class="sec-h">В камерах сейчас <small>' + active.length + ' партии · ' + m3(sum(active, function (b) { return num(b.vol); })) + ' м³</small></div><div class="kilns">';
+  h += active.length ? active.map(kilnCard).join('') : '<div class="panel empty">Камеры пусты. Загрузите партию кнопкой «+ Партия».</div>';
+  h += '</div><section class="panel" style="margin-top:16px"><h2>Готовые партии</h2>' +
+    table([['Камера'], ['Продукция'], ['Объём', 1], ['Загрузка'], ['Влажность', 1]], list.filter(function (b) { return b.status === 'готово'; }).map(function (b) {
+      return '<tr data-open="drying" data-id="' + esc(b.id) + '"><td>' + esc(b.chamber) + demoMark(b) + '</td><td>' + esc((product(b.productId) || {}).name || '—') + '</td><td class="n num">' + m3(b.vol) + '</td><td>' + dateLabel(b.start) + '</td><td class="n num">' + nf0.format(b.mcStart) + ' → ' + nf0.format(b.mcNow) + ' %</td></tr>';
+    })) + '</section>';
+  return h;
+}
+function kilnCard(b) {
+  var p = product(b.productId) || {};
+  var maxMc = 60, pos = Math.min(100, num(b.mcNow) / maxMc * 100), goal = num(b.mcTarget) / maxMc * 100;
+  var days = daysBetween(b.start, todayISO());
+  var done = num(b.mcNow) <= num(b.mcTarget);
+  var rate = days > 0 ? (num(b.mcStart) - num(b.mcNow)) / days : 0;
+  var left = !done && rate > 0 ? Math.ceil((num(b.mcNow) - num(b.mcTarget)) / rate) : 0;
+  return '<article class="kiln" data-open="drying" data-id="' + esc(b.id) + '" tabindex="0"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="lbl">' + esc(b.chamber) + '</span>' + (done ? '<span class="chip good">готово к выгрузке</span>' : '<span class="chip neutral">' + days + '-й день</span>') + '</div>' +
+    '<div><div class="mc">' + nf0.format(b.mcNow) + '<small style="font-size:24px"> %</small></div><div class="muted" style="font-size:13px">влажность сейчас · цель ' + nf0.format(b.mcTarget) + ' %</div></div>' +
+    '<div class="mc-track" aria-hidden="true"><span class="goal" style="left:' + goal + '%"></span><span class="pin" style="left:' + pos + '%"></span></div>' +
+    '<div style="font-size:14px">' + esc(p.name || '—') + ' · <b class="num">' + m3(b.vol) + '</b> м³' + demoMark(b) + '</div>' +
+    '<div class="muted" style="font-size:12.5px">Загрузка ' + dateLabel(b.start) + ' при ' + nf0.format(b.mcStart) + ' %' + (left ? ' · осталось ≈ ' + left + ' дн.' : '') + '</div></article>';
+}
+
+function viewStock() {
+  var st = stockAll();
+  var lumber = S.data.products.filter(function (p) { return p.kind !== 'waste'; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+  var waste = S.data.products.filter(function (p) { return p.kind === 'waste'; });
+  var total = sum(lumber, function (p) { return Math.max(0, st.products[p.id] || 0); });
+  var h = photoBand('stack', [[m3(st.log) + ' м³', 'кругляк на площадке'], [m3(total) + ' м³', 'пиломатериал'], [moneyShort(stockValue(st)), 'стоимость по прайсу'], [m3(sum(waste, function (p) { return Math.max(0, st.products[p.id] || 0); })) + ' м³', 'горбыль и опил']]);
+  h += '<div class="sec-h">Пиломатериал <small>остаток = выпуск со смен − отгрузки</small></div><div class="packs">' + lumber.map(function (p) { return packCard(p, st.products[p.id] || 0); }).join('') + '</div>';
+  h += '<div class="sec-h" style="margin-top:22px">Отходы — тоже товар <small>горбыль на дрова, опил на подстилку и брикеты</small></div><div class="packs">' + waste.map(function (p) { return packCard(p, st.products[p.id] || 0); }).join('') + '</div>';
+  return h;
+}
+function packCard(p, v) {
+  var pv = pieceVol(p), pcs = pv ? Math.round(v / pv) : 0;
+  var nB = Math.max(0, Math.min(9, Math.round(v / 3)));
+  var b = ''; for (var i = 0; i < nB; i++) b += '<span style="width:' + (88 + (i % 3) * 4) + '%"></span>';
+  var low = v < 2 && p.kind !== 'waste';
+  return '<article class="pack"><div class="name">' + esc(p.name) + '</div><div class="boards" aria-hidden="true">' + b + '</div>' +
+    '<div class="row"><span class="big">' + m3(Math.max(0, v)) + '<small style="font-size:18px;color:var(--muted)"> м³</small></span>' + (low ? '<span class="chip warn">мало</span>' : '') + '</div>' +
+    '<div class="row muted" style="font-size:13px"><span>' + (pcs ? nf0.format(pcs) + ' шт' : KIND[p.kind] || '') + '</span><span>' + moneyShort(Math.max(0, v) * num(p.price)) + '</span></div></article>';
+}
+
+function viewSales() {
+  var c = monthCalc(S.month), sl = c.sales.slice().sort(byDate), db = debts();
+  var h = '<div class="grid g4">' + kpi('Выручка', moneyShort(c.revenue), '', sl.length + ' отгрузок') + kpi('Получено денег', moneyShort(c.received), '', pct(c.revenue ? c.received / c.revenue : 0) + ' от выручки') + kpi('Из них отходы', moneyShort(c.wasteRevenue), '', 'горбыль и опил') + kpi('Долги клиентов', moneyShort(sum(db, function (d) { return d.debt; })), '', db.length + ' неоплаченных') + '</div>';
+  h += '<div class="grid g-main" style="margin-top:16px"><section class="panel"><h2>Отгрузки</h2>' +
+    table([['Дата'], ['№'], ['Клиент'], ['Объём', 1], ['Сумма', 1], ['Оплата', 1]], sl.map(function (z) {
+      var debt = num(z.total) - num(z.paid);
+      var chip = debt <= 0.5 ? '<span class="chip good">оплачено</span>' : num(z.paid) > 0 ? '<span class="chip warn">частично</span>' : '<span class="chip bad">не оплачено</span>';
+      return '<tr data-open="sale" data-id="' + esc(z.id) + '"><td>' + shortDate(z.date) + '</td><td><span class="tagno">' + esc(z.no || '—') + '</span></td><td>' + esc(z.customer) + demoMark(z) + '</td><td class="n num">' + m3(sum(z.items || [], function (i) { return num(i.vol); })) + '</td><td class="n num">' + money(z.total) + '</td><td class="n">' + chip + '</td></tr>';
+    })) + '</section><section class="panel"><h2>Кто должен <small>все месяцы</small></h2>' +
+    (db.length ? '<div class="alerts">' + db.map(function (d) {
+      return '<div class="alert ' + (d.overdue ? 'bad' : 'info') + '" data-open="sale" data-id="' + esc(d.z.id) + '" style="cursor:pointer"><span class="dot"></span><span><div class="t">' + esc(d.z.customer) + ' · ' + money(d.debt) + '</div><div class="s">' + esc(d.z.no || '') + ' от ' + dateLabel(d.z.date) + (d.overdue ? ' · просрочка ' + d.overdue + ' дн.' : ' · срок ' + dateLabel(d.z.dueDate)) + '</div></span><span class="muted">›</span></div>';
+    }).join('') + '</div>' : '<div class="empty">Долгов нет.</div>') + '</section></div>';
+  return h;
+}
+
+function viewExpenses() {
+  var c = monthCalc(S.month), ex = c.expensesList.slice().sort(byDate);
+  var cats = Object.keys(c.byCat).sort(function (a, b) { return c.byCat[b] - c.byCat[a]; });
+  var max = cats.length ? c.byCat[cats[0]] : 1;
+  var h = '<div class="grid g-main"><section class="panel"><h2>Расходы <small>' + moneyShort(c.expenses) + '</small></h2>' +
+    table([['Дата'], ['Статья'], ['Комментарий'], ['Сумма', 1]], ex.map(function (e) {
+      return '<tr data-open="expense" data-id="' + esc(e.id) + '"><td>' + shortDate(e.date) + '</td><td>' + esc(e.category) + demoMark(e) + '</td><td class="muted">' + esc(e.note) + '</td><td class="n num">' + money(e.amount) + '</td></tr>';
+    }), '<tr><td colspan="3">Итого</td><td class="n num">' + money(c.expenses) + '</td></tr>') + '</section>' +
+    '<section class="panel"><h2>Структура <small>на 1 м³ выпуска</small></h2><div class="bars">' + cats.map(function (k) {
+      return '<div class="bar-row"><span>' + esc(k) + '</span><span class="num">' + moneyShort(c.byCat[k]) + '</span><div class="track"><div class="fill" style="width:' + (c.byCat[k] / max * 100) + '%"></div></div><span class="muted" style="font-size:12.5px">' + (c.out ? money(c.byCat[k] / c.out) + ' на м³' : '') + '</span></div>';
+    }).join('') + '</div><p class="muted" style="font-size:13px;margin:14px 0 0">Сырьё (' + moneyShort(c.rawCost) + ') и сдельная зарплата (' + moneyShort(c.payroll) + ') считаются отдельно — из приёмки и смен.</p></section></div>';
+  return h;
+}
+
+function viewFinance() {
+  var c = monthCalc(S.month);
+  var steps = [
+    ['Выручка', c.revenue, 'var(--good)'],
+    ['Сырьё (распилено × средняя цена)', -c.rawCost, 'var(--wood)'],
+    ['Расходы', -c.expenses, '#8C6A4A'],
+    ['Сдельная зарплата', -c.payroll, '#B9A27F'],
+    ['Прибыль', c.profit, c.profit >= 0 ? 'var(--ink)' : 'var(--bad)']
+  ];
+  var max = Math.max(c.revenue, 1);
+  var acc = 0;
+  var wf = '<div class="bars">' + steps.map(function (s, i) {
+    var w = Math.abs(s[1]) / max * 100, left;
+    if (i === 0) { left = 0; acc = s[1]; }
+    else if (i === steps.length - 1) { left = s[1] >= 0 ? 0 : 0; }
+    else { acc += s[1]; left = acc / max * 100; }
+    return '<div class="bar-row"><span>' + s[0] + '</span><span class="num"><b>' + money(s[1]) + '</b></span><div class="track" style="height:18px;position:relative;background:var(--panel-2)"><div style="position:absolute;top:0;bottom:0;left:' + Math.max(0, left) + '%;width:' + Math.min(100, w) + '%;background:' + s[2] + ';border-radius:3px"></div></div></div>';
+  }).join('') + '</div>';
+  var cost = c.out ? [['Сырьё', c.rawCost / c.out], ['Расходы', c.expenses / c.out], ['Зарплата', c.payroll / c.out]] : [];
+  var ms = months().slice(0, 4).reverse();
+  var rows = ms.map(function (m) { var x = monthCalc(m); return '<tr><td>' + monthLabel(m) + '</td><td class="n num">' + m3(x.out) + '</td><td class="n num">' + pct(x.y) + '</td><td class="n num">' + money(x.revenue) + '</td><td class="n num">' + money(x.costPerM3) + '</td><td class="n num" style="color:' + (x.profit < 0 ? 'var(--bad)' : 'inherit') + '">' + money(x.profit) + '</td></tr>'; });
+  // маржа по продукции
+  var cpm = c.costPerM3;
+  var prods = S.data.products.filter(function (p) { return p.kind !== 'waste'; });
+  var h = '<div class="grid g4">' + kpi('Выручка', moneyShort(c.revenue), '', monthLabel(S.month)) + kpi('Прибыль', moneyShort(c.profit), '', 'рентабельность ' + pct(c.revenue ? c.profit / c.revenue : 0)) + kpi('Себестоимость', moneyShort(c.costPerM3), '', 'на 1 м³ пиломатериала') + kpi('Деньги пришли', moneyShort(c.received), '', 'из ' + moneyShort(c.revenue) + ' выручки') + '</div>';
+  h += '<div class="grid g2" style="margin-top:16px"><section class="panel"><h2>От выручки к прибыли</h2>' + wf + '</section>' +
+    '<section class="panel"><h2>Из чего состоит 1 м³ <small>' + money(cpm) + '</small></h2><div class="bars">' + cost.map(function (x) {
+      return '<div class="bar-row"><span>' + x[0] + '</span><span class="num">' + money(x[1]) + '</span><div class="track"><div class="fill" style="width:' + (cpm ? x[1] / cpm * 100 : 0) + '%"></div></div></div>';
+    }).join('') + '</div><div class="sec-h" style="margin-top:20px;font-size:18px">Маржа по позициям</div><div class="tbl-wrap"><table><thead><tr><th>Позиция</th><th class="n">Цена</th><th class="n">Маржа на м³</th></tr></thead><tbody>' +
+    prods.map(function (p) { var mg = num(p.price) - cpm; return '<tr><td>' + esc(p.name) + '</td><td class="n num">' + money(p.price) + '</td><td class="n"><span class="chip ' + (mg > 0 ? 'good' : 'bad') + '">' + money(mg) + '</span></td></tr>'; }).join('') +
+    '</tbody></table></div></section></div>';
+  h += '<section class="panel" style="margin-top:16px"><h2>По месяцам</h2>' + table([['Месяц'], ['Выпуск, м³', 1], ['Выход', 1], ['Выручка', 1], ['Себест. 1 м³', 1], ['Прибыль', 1]], rows) + '</section>';
+  return h;
+}
+
+function viewPayroll() {
+  var c = monthCalc(S.month);
+  var by = {};
+  c.shifts.forEach(function (s) {
+    var out = outVol(s);
+    shiftPay(s).forEach(function (p) { var x = by[p.id] || (by[p.id] = { n: 0, m3: 0, pay: 0 }); x.n++; x.m3 += out; x.pay += p.pay; });
+  });
+  var ids = Object.keys(by);
+  var h = '<div class="grid g-main"><section class="panel"><h2>Начислено за ' + esc(monthLabel(S.month).toLowerCase()) + ' <small>' + money(c.payroll) + '</small></h2>' +
+    table([['Сотрудник'], ['Должность'], ['Смен', 1], ['Объём бригады, м³', 1], ['Расценка', 1], ['Начислено', 1]], ids.map(function (id) {
+      var p = person(id) || { name: '—', role: '' }, x = by[id];
+      return '<tr data-open="person" data-id="' + esc(id) + '"><td>' + esc(p.name) + demoMark(p) + '</td><td>' + esc(p.role) + '</td><td class="n num">' + x.n + '</td><td class="n num">' + m3(x.m3) + '</td><td class="n num">' + money(p.rate) + '/м³</td><td class="n num"><b>' + money(x.pay) + '</b></td></tr>';
+    }), '<tr><td colspan="5">Итого</td><td class="n num">' + money(c.payroll) + '</td></tr>') + '</section>' +
+    '<section class="panel"><h2>Как считается</h2><p style="margin:0 0 10px">Каждому члену бригады начисляется <b>выпуск пиломатериала за смену × его расценка за 1 м³</b>. Горбыль и опил в оплату не входят — так бригаде выгодно пилить с высоким выходом.</p><p class="muted" style="margin:0;font-size:13.5px">Расценки меняются в «Справочниках». Начисление пересчитывается сразу после правки смены, споров «сколько напилили» больше нет: смена, объём и бригада видны каждому.</p></section></div>';
+  return h;
+}
+
+function viewRefs() {
+  var ps = S.data.products.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+  var st = S.settings;
+  var h = '<div class="grid g2"><section class="panel"><h2>Продукция <span class="act"><button class="btn sm" data-act="new" data-kind="product" type="button">+ Позиция</button></span></h2>' +
+    table([['Название'], ['Тип'], ['1 шт, м³', 1], ['Цена за м³', 1]], ps.map(function (p) {
+      return '<tr data-open="product" data-id="' + esc(p.id) + '"><td>' + esc(p.name) + demoMark(p) + '</td><td class="muted">' + esc(KIND[p.kind] || '') + '</td><td class="n num">' + (pieceVol(p) ? nf3.format(pieceVol(p)) : '—') + '</td><td class="n num">' + money(p.price) + '</td></tr>';
+    })) + '</section><section class="panel"><h2>Люди <span class="act"><button class="btn sm" data-act="new" data-kind="person" type="button">+ Сотрудник</button></span></h2>' +
+    table([['Имя'], ['Должность'], ['Расценка за м³', 1]], S.data.people.map(function (p) {
+      return '<tr data-open="person" data-id="' + esc(p.id) + '"><td>' + esc(p.name) + demoMark(p) + (p.active === false ? ' <span class="chip neutral">не работает</span>' : '') + '</td><td class="muted">' + esc(p.role) + '</td><td class="n num">' + money(p.rate) + '</td></tr>';
+    })) + '</section></div>';
+  h += '<section class="panel" style="margin-top:16px"><h2>Настройки</h2><form id="settings-form" class="fgrid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">' +
+    fld('Название лесопилки', '<input id="st-name" name="millName" value="' + esc(st.millName) + '">') +
+    fld('Валюта', '<select id="st-cur" name="currency">' + ['₸', '₽', 'сом', 'BYN', '$'].map(function (c) { return '<option' + (c === st.currency ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>') +
+    fld('Норма выхода, %', '<input id="st-norm" name="yieldNorm" inputmode="decimal" value="' + esc(st.yieldNorm) + '">', 'Ленточная пилорама на хвое: 55–62 %') +
+    fld('Допустимо «не учтено», %', '<input id="st-un" name="unaccountedLimit" inputmode="decimal" value="' + esc(st.unaccountedLimit) + '">', 'Выше — тревога на сводке') +
+    fld('Порог расхождения с накладной, %', '<input id="st-disc" name="discrepancyLimit" inputmode="decimal" value="' + esc(st.discrepancyLimit) + '">') +
+    fld('Пилы (через запятую)', '<input id="st-saws" name="saws" value="' + esc((st.saws || []).join(', ')) + '">') +
+    '<div class="f full" style="flex-direction:row;gap:8px;flex-wrap:wrap">' + (S.canWrite ? '<button class="btn primary" type="submit">Сохранить настройки</button>' : '<span class="muted">У вас доступ только на просмотр.</span>') + '</div></form></section>';
+  var demoCount = sum(COLS, function (cname) { return S.data[cname].filter(function (x) { return x.demo; }).length; });
+  h += '<section class="panel" style="margin-top:16px"><h2>Данные</h2><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
+    (demoCount ? '<span>В базе ' + demoCount + ' примерных записей (помечены «пример»).</span>' + (S.canWrite ? '<button class="btn danger" data-act="remove-demo" type="button">Удалить все примеры</button>' : '') : '<span class="muted">Примерных записей нет — только ваши данные.</span>') +
+    (S.mode === 'local' ? '<button class="btn" data-act="reset-local" type="button">Сбросить демо к началу</button>' : '') +
+    '</div></section>';
+  return h;
+}
+
+function viewPains() {
+  var pains = [
+    ['Кубатура «на глаз» и споры с поставщиком', 'По исследованиям, объёмы по таблицам ГОСТ 2708-75 для брёвен от 24 см завышены до 13 % относительно фактических, а ошибки таксации доходят до ±30 %. Поставщики пользуются этим.', 'Побревенный замер с телефона: диаметр, длина, количество — объём считается сразу. Расхождение с накладной видно в рублях/тенге переплаты.', 'receipts', 'Приёмка'],
+    ['Никто не знает реальный выход', 'Фактический выход деловой древесины обычно ниже, чем в документах. На выход влияют сбег бревна, длина и ширина пропила — без учёта по сменам это не видно.', 'Каждая смена: сколько кругляка ушло и сколько доски вышло. Выход по пиле и бригаде, подсветка смен ниже нормы.', 'sawing', 'Распиловка'],
+    ['Пропажа доски и «неучтёнка»', 'Счётная палата отмечала отсутствие достоверного учёта лесоматериалов и движения древесины от сырья до продукции.', 'Баланс древесины по каждой смене: кругляк = доска + горбыль + опил + не учтено. Всё, что выше порога, — красным на сводке. У каждой записи виден автор.', 'dashboard', 'Сводка'],
+    ['Остатки известны только после пересчёта', 'Владельцы лесопилок называют видимость остатков главной болью — продают то, чего нет, и не видят, что залежалось.', 'Склад считается сам: выпуск со смен минус отгрузки, по сечениям, в кубах и штуках, с оценкой по прайсу.', 'stock', 'Склад'],
+    ['Неизвестна себестоимость кубометра', 'Цена кругляка растёт, а прибыль считают «по остатку на счёте». Неясно, какая позиция в плюсе.', 'Себестоимость 1 м³ из сырья, расходов и зарплаты, маржа по каждой позиции, путь от выручки к прибыли.', 'finance', 'Финансы'],
+    ['Отходы уходят бесплатно', 'Горбыль и опил — до 40 % объёма кругляка. Бухгалтерия обычно оценивает их условно, а на площадке их просто отдают.', 'Горбыль и опил приходуются со смены и продаются как товар — выручка от отходов видна отдельной строкой.', 'stock', 'Склад'],
+    ['Споры из-за сдельной зарплаты', 'Пильщикам платят за кубы, а кубы считает мастер в тетради. Каждый месяц — спор.', 'Начисление по формуле из смен: выпуск × расценка. Бригада видит то же, что и владелец.', 'payroll', 'Зарплата'],
+    ['Клиенты тянут с оплатой', 'Отгрузили «под честное слово», через месяц никто не помнит, кто сколько должен.', 'Каждая отгрузка со сроком оплаты. Просроченные долги поднимаются на сводку автоматически.', 'sales', 'Продажи'],
+    ['Сушка по ощущениям', 'Пересушили — трещины, недосушили — плесень и возвраты.', 'Камеры с влажностью на входе, сейчас и целевой; прогноз дней до выгрузки.', 'drying', 'Сушка']
+  ];
+  var h = '<section class="offer"><div class="txt"><span class="eyebrow lbl" style="color:var(--tag)">Предложение для лесопилок</span><h2>Видеть каждый кубометр — от делянки до оплаты</h2>' +
+    '<p>«Распил» заменяет тетрадь мастера, Excel бухгалтера и звонки «сколько у нас осталось». Работает с телефона прямо на площадке, данные общие для владельца, мастера и бухгалтера. Мы внедряем его за две недели: настраиваем справочники, нормы выхода и расценки, обучаем мастера и приёмщика.</p>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn tag" href="#dashboard">Открыть сводку</a><a class="btn" style="background:transparent;color:var(--rail-ink);border-color:#3a5045" href="#sawing">Посмотреть смены</a></div></div><div class="img" role="img" aria-label="Погрузчик с брёвнами на лесопилке"></div></section>';
+  h += '<div class="sec-h">Что болит и как закрываем <small>' + pains.length + ' проблем</small></div><div class="pains">' + pains.map(function (p) {
+    return '<article class="pain"><div class="q">' + p[0] + '</div><div class="fact">' + p[1] + '</div><div class="fix"><b>Решение.</b> ' + p[2] + '</div><a class="go" href="#' + p[3] + '">Раздел «' + p[4] + '» →</a></article>';
+  }).join('') + '</div>';
+  h += '<div class="sec-h" style="margin-top:24px">Что ведёт лесопилка в «Распиле» <small>все учёты в одном месте</small></div><div class="ledger">' + [
+    ['Сырьё', 'приёмка кругляка, поставщики, накладные, оплаты'],
+    ['Производство', 'смены, пилы, бригады, выход, баланс древесины'],
+    ['Сушка', 'камеры, партии, влажность'],
+    ['Склад', 'пиломатериал по сечениям, отходы, кругляк'],
+    ['Продажи', 'отгрузки, клиенты, оплаты, долги'],
+    ['Расходы', 'ГСМ, пилы и заточка, энергия, ремонт, аренда, налоги'],
+    ['Зарплата', 'сдельная по сменам, оклады'],
+    ['Финансы', 'выручка, прибыль, себестоимость 1 м³, маржа']
+  ].map(function (x) { return '<div><b>' + x[0] + '</b><span>' + x[1] + '</span></div>'; }).join('') + '</div>';
+  h += '<div class="credits">Источники: <a href="https://journals.nubip.edu.ua/index.php/Lisivnytstvo/en/article/view/1025" target="_blank" rel="noopener">НУБиП, погрешность таблиц ГОСТ 2708-75</a> · <a href="https://elib.belstu.by/bitstream/123456789/14627/1/8.minkevichpetrauskassevruk.pdf" target="_blank" rel="noopener">БГТУ, сравнение объёмов круглых лесоматериалов</a> · <a href="https://core.ac.uk/download/42048581.pdf" target="_blank" rel="noopener">выход деловой древесины</a> · <a href="https://pravo.ru/news/216622/" target="_blank" rel="noopener">Счётная палата об учёте лесоматериалов</a> · <a href="https://neg.by/novosti/otkrytj/buhuchet-produkcii-pererabotki-drevesiny" target="_blank" rel="noopener">учёт отходов лесопиления</a> · <a href="https://millbot-ai.pages.dev/blog/sawmill-technology-guide/" target="_blank" rel="noopener">видимость остатков на лесопилках</a>.<br>' +
+    'Фото: <a href="https://unsplash.com/photos/5bjzV3g0ZJc" target="_blank" rel="noopener">Georg Eiermann</a>, <a href="https://unsplash.com/photos/_kjGPlM5YfA" target="_blank" rel="noopener">Jon Butterworth</a>, <a href="https://unsplash.com/photos/yVRn-d6JGzo" target="_blank" rel="noopener">Patrick Robert Doyle</a>, <a href="https://unsplash.com/photos/IiVfi4-EEHc" target="_blank" rel="noopener">Daniel Schneemann</a>, <a href="https://unsplash.com/photos/ltHfH28gf8Q" target="_blank" rel="noopener">Elias Null</a> / Unsplash.</div>';
+  return h;
+}
+
+/* ---------------- формы */
+function fld(label, input, hint, full) {
+  var id = (input.match(/id="([^"]+)"/) || [])[1] || '';
+  return '<div class="f' + (full ? ' full' : '') + '"><label for="' + id + '">' + label + '</label>' + input + (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
+}
+function opts(list, val, labelFn, valFn) {
+  return list.map(function (x) { var v = valFn ? valFn(x) : x, l = labelFn ? labelFn(x) : x; return '<option value="' + esc(v) + '"' + (String(v) === String(val) ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('');
+}
+function datalist(id, values) { var u = {}; values.forEach(function (v) { if (v) u[v] = 1; }); return '<datalist id="' + id + '">' + Object.keys(u).map(function (v) { return '<option value="' + esc(v) + '">'; }).join('') + '</datalist>'; }
+
+var FORMS = {
+  receipt: { col: 'receipts', title: 'Приёмка кругляка', body: receiptForm, read: readReceipt, live: liveReceipt },
+  shift: { col: 'shifts', title: 'Смена распиловки', body: shiftForm, read: readShift, live: liveShift },
+  sale: { col: 'sales', title: 'Продажа', body: saleForm, read: readSale, live: liveSale },
+  expense: { col: 'expenses', title: 'Расход', body: expenseForm, read: readExpense },
+  drying: { col: 'drying', title: 'Партия в сушку', body: dryingForm, read: readDrying },
+  product: { col: 'products', title: 'Позиция', body: productForm, read: readProduct },
+  person: { col: 'people', title: 'Сотрудник', body: personForm, read: readPerson }
+};
+var current = null;
+
+function openForm(kind, id) {
+  var F = FORMS[kind]; if (!F) return;
+  var rec = id ? S.data[F.col].filter(function (x) { return x.id === id; })[0] : null;
+  current = { kind: kind, rec: rec };
+  var ro = !S.canWrite;
+  var root = document.getElementById('sheet-root');
+  root.innerHTML = '<div class="sheet-back" id="sheet-back"><form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" novalidate>' +
+    '<header><h2 id="sheet-title">' + F.title + '</h2>' + (rec && rec.demo ? '<span class="demo-mark">пример</span>' : '') + '<button class="btn ghost x" type="button" data-act="close" aria-label="Закрыть">✕</button></header>' +
+    '<div class="body"><fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:16px;min-width:0"' + (ro ? ' disabled' : '') + '>' + F.body(rec || {}) + '</fieldset><div class="audit" id="audit"></div></div>' +
+    '<footer>' + (ro ? '<span class="muted">Только просмотр</span>' : '<button class="btn primary" type="submit">Сохранить</button>') + '<button class="btn" type="button" data-act="close">Отмена</button><span class="sp"></span>' + (rec && !ro ? '<button class="btn danger" type="button" data-act="delete">Удалить</button>' : '') + '</footer></form></div>';
+  var form = document.getElementById('sheet');
+  form.addEventListener('input', function () { if (F.live) F.live(form); });
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var data = F.read(form, rec || {});
+    if (!data) return;
+    var btn = form.querySelector('[type=submit]'); if (btn) { btn.disabled = true; btn.textContent = 'Сохраняю…'; }
+    save(F.col, data).then(function () { closeForm(); toast('Сохранено'); }).catch(function () { if (btn) { btn.disabled = false; btn.textContent = 'Сохранить'; } });
+  });
+  if (F.live) F.live(form);
+  renderAudit(rec);
+  var first = form.querySelector('input,select'); if (first && !rec) first.focus();
+}
+function closeForm() { document.getElementById('sheet-root').innerHTML = ''; current = null; }
+function renderAudit(rec) {
+  var el = document.getElementById('audit'); if (!el || !rec) return;
+  var when = rec.updatedAt || rec.createdAt;
+  var by = rec.updatedBy || rec.createdBy;
+  if (!when) return;
+  var d = new Date(when);
+  var txt = (rec.updatedAt ? 'Изменено ' : 'Внесено ') + d.toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  el.textContent = txt;
+  if (by && S.user) S.user.profiles([by]).then(function (ps) {
+    var p = ps[by]; if (!p) return;
+    el.innerHTML = '<img alt="" src="' + esc(p.avatarUrl) + '"><span></span>';
+    el.querySelector('span').textContent = txt + ' · ' + (p.name || 'участник');
+  });
+}
+
+// --- приёмка
+function logRow(g) {
+  g = g || {};
+  return '<div class="rowline rl-logs" data-row="log"><input aria-label="Диаметр, см" inputmode="decimal" name="d" value="' + esc(g.d || '') + '" placeholder="24"><input aria-label="Длина, м" inputmode="decimal" name="l" value="' + esc(g.l || 6) + '"><input aria-label="Количество" inputmode="numeric" name="n" value="' + esc(g.n || '') + '" placeholder="20"><span class="calc">—</span><button type="button" class="icon-btn" data-act="row-del" aria-label="Удалить строку">✕</button></div>';
+}
+function receiptForm(r) {
+  var logs = (r.logs && r.logs.length ? r.logs : [{}, {}, {}]);
+  return '<div class="fgrid">' +
+    fld('Дата', '<input type="date" id="f-date" name="date" value="' + esc(r.date || todayISO()) + '" required>') +
+    fld('№ накладной', '<input id="f-doc" name="doc" value="' + esc(r.doc || '') + '" placeholder="ТН-1234">') +
+    fld('Поставщик', '<input id="f-sup" name="supplier" list="dl-sup" value="' + esc(r.supplier || '') + '" required>' + datalist('dl-sup', S.data.receipts.map(function (x) { return x.supplier; }))) +
+    fld('Порода', '<select id="f-species" name="species">' + opts(SPECIES, r.species || 'Сосна') + '</select>') + '</div>' +
+    '<div class="f"><span class="lab">Побревенный замер</span><div class="rowhead rl-logs" style="display:grid"><span>Диаметр, см</span><span>Длина, м</span><span>Штук</span><span style="text-align:right">м³</span><span></span></div><div class="rows" id="log-rows">' + logs.map(logRow).join('') + '</div>' +
+    '<button type="button" class="btn sm" data-act="row-add" data-tpl="log" style="align-self:flex-start">+ Строка</button><span class="hint">Верхний диаметр без коры, градация 2 см; сбег 0,7 см/м — как в таблицах ГОСТ 2708-75 (±3 %).</span></div>' +
+    '<div class="fgrid">' +
+    fld('Объём по накладной, м³', '<input id="f-sv" name="supplierVolume" inputmode="decimal" value="' + esc(r.supplierVolume || '') + '">') +
+    fld('Объём без замера, м³', '<input id="f-vol" name="manualVolume" inputmode="decimal" value="' + esc(r.logs && r.logs.length ? '' : (r.volume || '')) + '">', 'Если брёвна не считали поштучно') +
+    fld('Цена за м³', '<input id="f-price" name="pricePerM3" inputmode="decimal" value="' + esc(r.pricePerM3 || '') + '">', 'По накладной') +
+    fld('Оплачено', '<input id="f-paid" name="paid" inputmode="decimal" value="' + esc(r.paid != null ? r.paid : '') + '">') +
+    fld('Примечание', '<input id="f-note" name="note" value="' + esc(r.note || '') + '">', '', true) + '</div>' +
+    '<div class="live" id="live"><div><div class="lbl">По замеру</div><div class="big" id="lv-vol">0,00 м³</div></div><dl id="lv-dl"></dl></div>';
+}
+function readLogs(form) {
+  return Array.prototype.map.call(form.querySelectorAll('[data-row=log]'), function (row) {
+    return { d: num(row.querySelector('[name=d]').value), l: num(row.querySelector('[name=l]').value), n: Math.round(num(row.querySelector('[name=n]').value)) };
+  }).filter(function (g) { return g.d > 0 && g.l > 0 && g.n > 0; });
+}
+function liveReceipt(form) {
+  var logs = readLogs(form), vol = 0, cnt = 0;
+  Array.prototype.forEach.call(form.querySelectorAll('[data-row=log]'), function (row) {
+    var d = num(row.querySelector('[name=d]').value), l = num(row.querySelector('[name=l]').value), n = num(row.querySelector('[name=n]').value);
+    row.querySelector('.calc').textContent = d && l && n ? nf3.format(logVolume(d, l) * n) : '—';
+  });
+  logs.forEach(function (g) { vol += logVolume(g.d, g.l) * g.n; cnt += g.n; });
+  if (!logs.length) vol = num(form.manualVolume.value);
+  var sv = num(form.supplierVolume.value), price = num(form.pricePerM3.value);
+  document.getElementById('lv-vol').textContent = m3(vol) + ' м³';
+  var d = sv ? (vol - sv) / sv : 0;
+  var dL = num(S.settings.discrepancyLimit) / 100;
+  document.getElementById('lv-dl').innerHTML = '<dt>Брёвен</dt><dd>' + (cnt || '—') + '</dd><dt>По накладной</dt><dd>' + (sv ? m3(sv) + ' м³' : '—') + '</dd><dt>Разница</dt><dd>' + (sv ? '<span class="chip ' + (d < -dL ? 'bad' : d < -0.01 ? 'warn' : 'good') + '">' + pct(d) + '</span>' : '—') + '</dd><dt>К оплате</dt><dd>' + money((sv || vol) * price) + '</dd>' + (sv && d < 0 ? '<dt>Переплата</dt><dd style="color:var(--bad)">' + money((sv - vol) * price) + '</dd>' : '');
+}
+function readReceipt(form, r) {
+  var logs = readLogs(form);
+  var vol = logs.length ? sum(logs, function (g) { return logVolume(g.d, g.l) * g.n; }) : num(form.manualVolume.value);
+  if (!form.supplier.value.trim()) { toast('Укажите поставщика'); form.supplier.focus(); return null; }
+  if (!(vol > 0)) { toast('Заполните замер или объём без замера'); return null; }
+  return Object.assign({}, r, { date: form.date.value, doc: form.doc.value.trim(), supplier: form.supplier.value.trim(), species: form.species.value, logs: logs, volume: Math.round(vol * 1000) / 1000, supplierVolume: num(form.supplierVolume.value) || 0, pricePerM3: num(form.pricePerM3.value), paid: num(form.paid.value), note: form.note.value.trim() });
+}
+
+// --- смена
+function outRow(o) {
+  o = o || {};
+  var ps = S.data.products.filter(function (p) { return p.kind !== 'waste'; });
+  return '<div class="rowline rl-out" data-row="out"><select aria-label="Продукция" name="productId">' + '<option value="">— позиция —</option>' + opts(ps, o.productId, function (p) { return p.name; }, function (p) { return p.id; }) + '</select><input aria-label="Штук" inputmode="numeric" name="pcs" value="' + esc(o.pcs || '') + '" placeholder="шт"><input aria-label="Объём, м³" inputmode="decimal" name="vol" value="' + esc(o.vol || '') + '" placeholder="м³"><button type="button" class="icon-btn" data-act="row-del" aria-label="Удалить строку">✕</button></div>';
+}
+function shiftForm(s) {
+  var outs = s.outputs && s.outputs.length ? s.outputs : [{}, {}];
+  var crew = s.crew || [];
+  return '<div class="fgrid">' +
+    fld('Дата', '<input type="date" id="f-date" name="date" value="' + esc(s.date || todayISO()) + '">') +
+    fld('Пила', '<select id="f-saw" name="saw">' + opts(S.settings.saws || [], s.saw) + '</select>') +
+    fld('Порода', '<select id="f-species" name="species">' + opts(SPECIES, s.species || 'Сосна') + '</select>') +
+    fld('Распилено кругляка, м³', '<input id="f-log" name="logVolume" inputmode="decimal" value="' + esc(s.logVolume || '') + '" required>', 'Остаток на площадке: ' + m3(stockAll().log + num(s.logVolume)) + ' м³') + '</div>' +
+    '<div class="f"><span class="lab">Бригада</span><div class="crew-pick">' + S.data.people.filter(function (p) { return p.active !== false || crew.indexOf(p.id) >= 0; }).map(function (p) {
+      return '<label><input type="checkbox" name="crew" value="' + esc(p.id) + '"' + (crew.indexOf(p.id) >= 0 ? ' checked' : '') + '>' + esc(p.name) + '</label>';
+    }).join('') + '</div></div>' +
+    '<div class="f"><span class="lab">Выпуск пиломатериала</span><div class="rowhead rl-out" style="display:grid"><span>Позиция</span><span>Штук</span><span>м³</span><span></span></div><div class="rows" id="out-rows">' + outs.map(outRow).join('') + '</div>' +
+    '<button type="button" class="btn sm" data-act="row-add" data-tpl="out" style="align-self:flex-start">+ Позиция</button><span class="hint">Введите штуки — кубы посчитаются по сечению. Для необрезной доски вводите сразу м³.</span></div>' +
+    '<div class="fgrid">' +
+    fld('Горбыль, м³', '<input id="f-slab" name="slab" inputmode="decimal" value="' + esc(s.slab || '') + '">', 'В плотных кубах') +
+    fld('Опил, м³', '<input id="f-dust" name="sawdust" inputmode="decimal" value="' + esc(s.sawdust || '') + '">', 'Обычно 10–13 % кругляка') +
+    fld('Примечание', '<input id="f-note" name="note" value="' + esc(s.note || '') + '">', '', true) + '</div>' +
+    '<div class="live"><canvas id="live-log" width="240" height="240" aria-hidden="true"></canvas><div><div class="lbl">Выход</div><div class="big" id="lv-y">—</div><dl id="lv-dl"></dl></div></div>';
+}
+function readOutputs(form) {
+  return Array.prototype.map.call(form.querySelectorAll('[data-row=out]'), function (row) {
+    var pid = row.querySelector('[name=productId]').value, pcs = Math.round(num(row.querySelector('[name=pcs]').value)), vol = num(row.querySelector('[name=vol]').value);
+    var p = product(pid);
+    if (p && pieceVol(p) && pcs) vol = Math.round(pcs * pieceVol(p) * 1000) / 1000;
+    return { productId: pid, pcs: pcs, vol: vol };
+  }).filter(function (o) { return o.productId && o.vol > 0; });
+}
+function liveShift(form, ev) {
+  Array.prototype.forEach.call(form.querySelectorAll('[data-row=out]'), function (row) {
+    var p = product(row.querySelector('[name=productId]').value), pcs = num(row.querySelector('[name=pcs]').value), vi = row.querySelector('[name=vol]');
+    if (p && pieceVol(p) && pcs) { vi.value = nf3.format(pcs * pieceVol(p)).replace(/\s/g, ''); vi.readOnly = true; } else vi.readOnly = false;
+  });
+  var outs = readOutputs(form);
+  var s = { logVolume: num(form.logVolume.value), outputs: outs, slab: num(form.slab.value), sawdust: num(form.sawdust.value), crew: Array.prototype.map.call(form.querySelectorAll('[name=crew]:checked'), function (i) { return i.value; }) };
+  var x = shiftStats(s);
+  var unL = num(S.settings.unaccountedLimit) / 100;
+  document.getElementById('lv-y').textContent = x.log ? pct(x.y) : '—';
+  document.getElementById('lv-y').style.color = x.log ? yieldColor(x.y) : '';
+  var pay = sum(shiftPay(s), function (p) { return p.pay; });
+  document.getElementById('lv-dl').innerHTML = '<dt>Пиломатериал</dt><dd>' + m3(x.out) + ' м³</dd><dt>Горбыль + опил</dt><dd>' + m3(x.slab + x.dust) + ' м³</dd><dt>Не учтено</dt><dd>' + (x.log ? '<span class="chip ' + (x.unP > unL ? 'bad' : 'good') + '">' + m3(x.un) + ' м³ · ' + pct(x.unP) + '</span>' : '—') + '</dd><dt>Сдельная бригаде</dt><dd>' + money(pay) + '</dd>';
+  var cv = document.getElementById('live-log'); if (cv) drawLog(cv, x.y, { color: x.log ? yieldColor(x.y) : css('--tag') });
+}
+function readShift(form, s) {
+  var lv = num(form.logVolume.value);
+  if (!(lv > 0)) { toast('Укажите, сколько кругляка распилили'); form.logVolume.focus(); return null; }
+  return Object.assign({}, s, { date: form.date.value, saw: form.saw.value, species: form.species.value, logVolume: lv, outputs: readOutputs(form), slab: num(form.slab.value), sawdust: num(form.sawdust.value), crew: Array.prototype.map.call(form.querySelectorAll('[name=crew]:checked'), function (i) { return i.value; }), note: form.note.value.trim() });
+}
+
+// --- продажа
+function saleRow(it) {
+  it = it || {};
+  return '<div class="rowline rl-sale" data-row="sale"><select aria-label="Продукция" name="productId"><option value="">— позиция —</option>' + opts(S.data.products, it.productId, function (p) { return p.name; }, function (p) { return p.id; }) + '</select><input aria-label="Объём, м³" inputmode="decimal" name="vol" value="' + esc(it.vol || '') + '" placeholder="м³"><input aria-label="Цена за м³" inputmode="decimal" name="price" value="' + esc(it.price || '') + '" placeholder="цена/м³"><button type="button" class="icon-btn" data-act="row-del" aria-label="Удалить строку">✕</button></div>';
+}
+function saleForm(z) {
+  var items = z.items && z.items.length ? z.items : [{}];
+  var nextNo = 'З-' + (1 + Math.max.apply(null, [0].concat(S.data.sales.map(function (x) { return parseInt(String(x.no || '').replace(/\D/g, ''), 10) || 0; }))));
+  return '<div class="fgrid">' +
+    fld('Дата', '<input type="date" id="f-date" name="date" value="' + esc(z.date || todayISO()) + '">') +
+    fld('№ отгрузки', '<input id="f-no" name="no" value="' + esc(z.no || nextNo) + '">') +
+    fld('Клиент', '<input id="f-cust" name="customer" list="dl-cust" value="' + esc(z.customer || '') + '" required>' + datalist('dl-cust', S.data.sales.map(function (x) { return x.customer; })), '', true) + '</div>' +
+    '<div class="f"><span class="lab">Что отгрузили</span><div class="rowhead rl-sale" style="display:grid"><span>Позиция</span><span>м³</span><span>Цена/м³</span><span></span></div><div class="rows" id="sale-rows">' + items.map(saleRow).join('') + '</div><button type="button" class="btn sm" data-act="row-add" data-tpl="sale" style="align-self:flex-start">+ Позиция</button></div>' +
+    '<div class="fgrid">' +
+    fld('Оплачено', '<input id="f-paid" name="paid" inputmode="decimal" value="' + esc(z.paid != null ? z.paid : '') + '">', '<button type="button" class="btn sm ghost" data-act="paid-full" style="padding:0;min-height:0;color:var(--mark)">Оплачено полностью</button>') +
+    fld('Оплатить до', '<input type="date" id="f-due" name="dueDate" value="' + esc(z.dueDate || '') + '">') +
+    fld('Примечание', '<input id="f-note" name="note" value="' + esc(z.note || '') + '">', '', true) + '</div>' +
+    '<div class="live"><div><div class="lbl">Сумма</div><div class="big" id="lv-total">0</div></div><dl id="lv-dl"></dl></div>';
+}
+function readItems(form) {
+  return Array.prototype.map.call(form.querySelectorAll('[data-row=sale]'), function (row) {
+    return { productId: row.querySelector('[name=productId]').value, vol: num(row.querySelector('[name=vol]').value), price: num(row.querySelector('[name=price]').value) };
+  }).filter(function (i) { return i.productId && i.vol > 0; });
+}
+function liveSale(form, ev) {
+  Array.prototype.forEach.call(form.querySelectorAll('[data-row=sale]'), function (row) {
+    var pi = row.querySelector('[name=price]'), p = product(row.querySelector('[name=productId]').value);
+    if (p && !pi.value) pi.value = p.price;
+  });
+  var items = readItems(form), total = sum(items, function (i) { return i.vol * i.price; });
+  var st = stockAll(), warn = '';
+  items.forEach(function (i) {
+    var mine = current && current.rec ? sum((current.rec.items || []).filter(function (x) { return x.productId === i.productId; }), function (x) { return num(x.vol); }) : 0;
+    var have = (st.products[i.productId] || 0) + mine;
+    if (i.vol > have + 0.001) warn += '<dt style="color:var(--warn)">Не хватает</dt><dd style="color:var(--warn)">' + esc((product(i.productId) || {}).name) + ': на складе ' + m3(have) + '</dd>';
+  });
+  document.getElementById('lv-total').textContent = money(total);
+  document.getElementById('lv-dl').innerHTML = '<dt>Объём</dt><dd>' + m3(sum(items, function (i) { return i.vol; })) + ' м³</dd><dt>Долг</dt><dd>' + money(Math.max(0, total - num(form.paid.value))) + '</dd>' + warn;
+}
+function readSale(form, z) {
+  var items = readItems(form);
+  if (!form.customer.value.trim()) { toast('Укажите клиента'); form.customer.focus(); return null; }
+  if (!items.length) { toast('Добавьте хотя бы одну позицию'); return null; }
+  var total = Math.round(sum(items, function (i) { return i.vol * i.price; }));
+  return Object.assign({}, z, { date: form.date.value, no: form.no.value.trim(), customer: form.customer.value.trim(), items: items, total: total, paid: Math.min(total, num(form.paid.value)), dueDate: form.dueDate.value || form.date.value, note: form.note.value.trim() });
+}
+
+// --- расход, сушка, справочники
+function expenseForm(e) {
+  return '<div class="fgrid">' + fld('Дата', '<input type="date" id="f-date" name="date" value="' + esc(e.date || todayISO()) + '">') +
+    fld('Статья', '<select id="f-cat" name="category">' + opts(EXP_CATS, e.category || 'ГСМ') + '</select>') +
+    fld('Сумма', '<input id="f-amount" name="amount" inputmode="decimal" value="' + esc(e.amount || '') + '" required>') +
+    fld('Комментарий', '<input id="f-note" name="note" value="' + esc(e.note || '') + '" placeholder="Дизель 250 л, заточка 12 пил…">') + '</div>';
+}
+function readExpense(form, e) {
+  var a = num(form.amount.value);
+  if (!(a > 0)) { toast('Укажите сумму'); form.amount.focus(); return null; }
+  return Object.assign({}, e, { date: form.date.value, category: form.category.value, amount: a, note: form.note.value.trim() });
+}
+function dryingForm(b) {
+  return '<div class="fgrid">' + fld('Камера', '<input id="f-ch" name="chamber" list="dl-ch" value="' + esc(b.chamber || 'Камера 1') + '">' + datalist('dl-ch', S.data.drying.map(function (x) { return x.chamber; }).concat(['Камера 1', 'Камера 2', 'Камера 3']))) +
+    fld('Продукция', '<select id="f-prod" name="productId">' + opts(S.data.products.filter(function (p) { return p.kind !== 'waste'; }), b.productId, function (p) { return p.name; }, function (p) { return p.id; }) + '</select>') +
+    fld('Объём, м³', '<input id="f-vol" name="vol" inputmode="decimal" value="' + esc(b.vol || '') + '">') +
+    fld('Загружена', '<input type="date" id="f-start" name="start" value="' + esc(b.start || todayISO()) + '">') +
+    fld('Влажность при загрузке, %', '<input id="f-mcs" name="mcStart" inputmode="decimal" value="' + esc(b.mcStart || 50) + '">') +
+    fld('Целевая влажность, %', '<input id="f-mct" name="mcTarget" inputmode="decimal" value="' + esc(b.mcTarget || 12) + '">') +
+    fld('Влажность сейчас, %', '<input id="f-mcn" name="mcNow" inputmode="decimal" value="' + esc(b.mcNow || b.mcStart || 50) + '">', 'Обновляйте после замера влагомером') +
+    fld('Статус', '<select id="f-status" name="status">' + opts(['идёт', 'готово'], b.status || 'идёт') + '</select>') + '</div>';
+}
+function readDrying(form, b) {
+  return Object.assign({}, b, { chamber: form.chamber.value.trim() || 'Камера', productId: form.productId.value, vol: num(form.vol.value), start: form.start.value, mcStart: num(form.mcStart.value), mcTarget: num(form.mcTarget.value), mcNow: num(form.mcNow.value), status: form.status.value });
+}
+function productForm(p) {
+  return '<div class="fgrid">' + fld('Название', '<input id="f-name" name="name" value="' + esc(p.name || '') + '" placeholder="Доска обрезная 50×150×6000" required>', '', true) +
+    fld('Тип', '<select id="f-kind" name="kind">' + opts(Object.keys(KIND), p.kind || 'lumber', function (k) { return KIND[k]; }) + '</select>') +
+    fld('Цена за м³', '<input id="f-price" name="price" inputmode="decimal" value="' + esc(p.price || '') + '">') +
+    fld('Толщина, мм', '<input id="f-t" name="t" inputmode="decimal" value="' + esc(p.t || '') + '">') +
+    fld('Ширина, мм', '<input id="f-w" name="w" inputmode="decimal" value="' + esc(p.w || '') + '">', 'Пусто для необрезной') +
+    fld('Длина, м', '<input id="f-l" name="l" inputmode="decimal" value="' + esc(p.l || 6) + '">') +
+    fld('Порядок в списках', '<input id="f-order" name="order" inputmode="numeric" value="' + esc(p.order || S.data.products.length + 1) + '">') + '</div>';
+}
+function readProduct(form, p) {
+  if (!form.name.value.trim()) { toast('Введите название'); return null; }
+  return Object.assign({}, p, { name: form.name.value.trim(), kind: form.kind.value, price: num(form.price.value), t: num(form.t.value), w: num(form.w.value), l: num(form.l.value), order: num(form.order.value) });
+}
+function personForm(p) {
+  return '<div class="fgrid">' + fld('Имя и фамилия', '<input id="f-name" name="name" value="' + esc(p.name || '') + '" required>', '', true) +
+    fld('Должность', '<input id="f-role" name="role" list="dl-role" value="' + esc(p.role || 'Пильщик') + '">' + datalist('dl-role', ['Пильщик', 'Помощник', 'Торцовщик', 'Приёмщик', 'Водитель погрузчика'])) +
+    fld('Расценка за 1 м³ выпуска', '<input id="f-rate" name="rate" inputmode="decimal" value="' + esc(p.rate || '') + '">') +
+    fld('Статус', '<select id="f-active" name="active">' + opts(['работает', 'не работает'], p.active === false ? 'не работает' : 'работает') + '</select>') + '</div>';
+}
+function readPerson(form, p) {
+  if (!form.name.value.trim()) { toast('Введите имя'); return null; }
+  return Object.assign({}, p, { name: form.name.value.trim(), role: form.role.value.trim(), rate: num(form.rate.value), active: form.active.value === 'работает' });
+}
+
+/* ---------------- CSV */
+function csvFor(route) {
+  var m = S.month, rows = [];
+  if (route === 'receipts') { rows.push(['Дата', 'Накладная', 'Поставщик', 'Порода', 'Замер м3', 'Накладная м3', 'Цена м3', 'Оплачено']); inMonth(S.data.receipts, m).forEach(function (r) { rows.push([r.date, r.doc, r.supplier, r.species, r.volume, r.supplierVolume, r.pricePerM3, r.paid]); }); }
+  else if (route === 'sawing' || route === 'dashboard') { rows.push(['Дата', 'Пила', 'Бригада', 'Кругляк м3', 'Выпуск м3', 'Горбыль м3', 'Опил м3', 'Выход %', 'Не учтено м3']); inMonth(S.data.shifts, m).forEach(function (s) { var x = shiftStats(s); rows.push([s.date, s.saw, crewNames(s.crew), x.log, x.out.toFixed(3), x.slab, x.dust, (x.y * 100).toFixed(1), x.un.toFixed(3)]); }); }
+  else if (route === 'sales') { rows.push(['Дата', 'Номер', 'Клиент', 'Сумма', 'Оплачено', 'Срок']); inMonth(S.data.sales, m).forEach(function (z) { rows.push([z.date, z.no, z.customer, z.total, z.paid, z.dueDate]); }); }
+  else if (route === 'expenses') { rows.push(['Дата', 'Статья', 'Сумма', 'Комментарий']); inMonth(S.data.expenses, m).forEach(function (e) { rows.push([e.date, e.category, e.amount, e.note]); }); }
+  else if (route === 'stock') { var st = stockAll(); rows.push(['Позиция', 'Остаток м3', 'Цена м3']); rows.push(['Кругляк', st.log.toFixed(3), '']); S.data.products.forEach(function (p) { rows.push([p.name, (st.products[p.id] || 0).toFixed(3), p.price]); }); }
+  else if (route === 'payroll') { rows.push(['Дата', 'Сотрудник', 'Начислено']); inMonth(S.data.shifts, m).forEach(function (s) { shiftPay(s).forEach(function (p) { rows.push([s.date, (person(p.id) || {}).name, Math.round(p.pay)]); }); }); }
+  else if (route === 'finance') { rows.push(['Месяц', 'Выпуск м3', 'Выручка', 'Сырьё', 'Расходы', 'Зарплата', 'Прибыль']); months().forEach(function (mm) { var c = monthCalc(mm); rows.push([mm, c.out.toFixed(2), Math.round(c.revenue), Math.round(c.rawCost), Math.round(c.expenses), Math.round(c.payroll), Math.round(c.profit)]); }); }
+  else if (route === 'drying') { rows.push(['Камера', 'Позиция', 'м3', 'Загрузка', 'Влажность сейчас', 'Статус']); S.data.drying.forEach(function (b) { rows.push([b.chamber, (product(b.productId) || {}).name, b.vol, b.start, b.mcNow, b.status]); }); }
+  return '﻿' + rows.map(function (r) { return r.map(function (v) { v = v == null ? '' : String(v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }).join(';'); }).join('\r\n');
+}
+function downloadCsv() {
+  var text = csvFor(S.route);
+  var name = 'raspil-' + S.route + '-' + (S.month || '') + '.csv';
+  var p = window.claude && window.claude.use ? window.claude.use('downloads') : Promise.resolve(null);
+  p.then(function (dl) {
+    if (!dl) { toast('Скачивание недоступно в этом окне'); return; }
+    return dl.save({ filename: name, data: new Blob([text], { type: 'text/csv;charset=utf-8' }) }).catch(function () { });
+  });
+}
+
+/* ---------------- события */
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-act],[data-open]');
+  if (!t) return;
+  var act = t.dataset.act;
+  if (!act && t.dataset.open) { openForm(t.dataset.open, t.dataset.id); return; }
+  if (act === 'new') openForm(t.dataset.kind);
+  else if (act === 'close') closeForm();
+  else if (act === 'delete') {
+    if (!t.classList.contains('armed')) { t.classList.add('armed'); t.textContent = 'Точно удалить?'; return; }
+    var F = FORMS[current.kind]; removeRec(F.col, current.rec.id).then(function () { closeForm(); toast('Удалено'); }).catch(function () { });
+  }
+  else if (act === 'row-add') {
+    var tpl = t.dataset.tpl, box = document.getElementById(tpl === 'log' ? 'log-rows' : tpl === 'out' ? 'out-rows' : 'sale-rows');
+    box.insertAdjacentHTML('beforeend', tpl === 'log' ? logRow() : tpl === 'out' ? outRow() : saleRow());
+    var inp = box.lastElementChild.querySelector('input,select'); if (inp) inp.focus();
+  }
+  else if (act === 'row-del') { var form = t.closest('form'); t.closest('.rowline').remove(); FORMS[current.kind].live && FORMS[current.kind].live(form); }
+  else if (act === 'paid-full') { var f2 = t.closest('form'); f2.paid.value = Math.round(sum(readItems(f2), function (i) { return i.vol * i.price; })); liveSale(f2); }
+  else if (act === 'go') { if (t.dataset.id) { e.preventDefault(); var map = { receipts: 'receipt', sawing: 'shift', sales: 'sale', drying: 'drying' }; location.hash = t.dataset.route; setTimeout(function () { openForm(map[t.dataset.route], t.dataset.id); }, 30); } }
+  else if (act === 'csv') downloadCsv();
+  else if (act === 'seed') { t.disabled = true; seedDb(); }
+  else if (act === 'remove-demo') {
+    if (!t.classList.contains('armed')) { t.classList.add('armed'); t.textContent = 'Точно удалить все примеры?'; return; }
+    removeDemo();
+  }
+  else if (act === 'reset-local') { applyDemoLocal(); render(); toast('Демо-данные восстановлены'); }
+});
+document.addEventListener('click', function (e) { if (e.target.id === 'sheet-back') closeForm(); });
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && current) closeForm();
+  if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('kiln')) openForm('drying', e.target.dataset.id);
+});
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'month') { S.month = e.target.value; render(); }
+});
+document.addEventListener('submit', function (e) {
+  if (e.target.id !== 'settings-form') return;
+  e.preventDefault();
+  var f = e.target;
+  saveSettings({ millName: f.millName.value.trim() || 'Моя лесопилка', currency: f.currency.value, yieldNorm: num(f.yieldNorm.value) || 56, unaccountedLimit: num(f.unaccountedLimit.value) || 4, discrepancyLimit: num(f.discrepancyLimit.value) || 3, saws: f.saws.value.split(',').map(function (x) { return x.trim(); }).filter(Boolean) })
+    .then(function () { toast('Настройки сохранены'); });
+});
+
+var toastTimer;
+function toast(msg) {
+  var t = document.getElementById('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 2600);
+}
+
+/* ---------------- рендер */
+var VIEWS = { dashboard: viewDashboard, receipts: viewReceipts, sawing: viewSawing, drying: viewDrying, stock: viewStock, sales: viewSales, expenses: viewExpenses, finance: viewFinance, payroll: viewPayroll, refs: viewRefs, pains: viewPains };
+var renderQueued = false;
+function scheduleRender() { if (renderQueued) return; renderQueued = true; requestAnimationFrame(function () { renderQueued = false; render(); }); }
+function allLoaded() { return COLS.every(function (c) { return S.loaded[c]; }); }
+
+function render() {
+  S.route = routeFromHash();
+  renderNav();
+  var view = document.getElementById('view');
+  if (S.mode === 'loading' || (S.mode === 'db' && !allLoaded())) {
+    renderTop();
+    if (!document.getElementById('load-log')) view.innerHTML = '<div class="loading"><canvas id="load-log" width="240" height="240"></canvas><div>' + (S.stale ? 'Общая база пока не отвечает. Проверьте интернет — данные появятся сами.' : 'Открываю журнал лесопилки…') + '</div></div>';
+    drawLog(document.getElementById('load-log'), 0.55);
+    return;
+  }
+  if (!S.month) S.month = pickDefaultMonth();
+  renderTop();
+  var banner = '';
+  var empty = !S.data.shifts.length && !S.data.receipts.length && !S.data.sales.length;
+  if (S.mode === 'local') banner = '<div class="banner"><b>Демо-режим.</b> Общая база недоступна в этом окне, поэтому показан пример лесопилки. Изменения сохраняются только в этом браузере.</div>';
+  if (S.mode === 'db' && empty && S.route !== 'pains') {
+    view.innerHTML = '<div class="panel" style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:20px;align-items:center;padding:28px"><div class="stack" style="gap:10px"><div class="lbl">Журнал пуст</div><h2 style="font:800 40px/0.95 var(--f-display)">Начните с первой машины кругляка</h2><p class="muted" style="margin:0;max-width:60ch">Здесь появятся сводка, выход по сменам, склад и деньги. Добавьте приёмку, затем смену распиловки — остальное посчитается само. Или загрузите пример лесопилки за полтора месяца, чтобы посмотреть, как всё работает, и удалите его потом в «Справочниках».</p><div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (S.canWrite ? '<button class="btn tag" data-act="new" data-kind="receipt" type="button">+ Первая приёмка</button><button class="btn" data-act="seed" type="button">Загрузить пример</button>' : '<span class="muted">У вас доступ только на просмотр.</span>') + '</div></div><canvas id="empty-log" width="320" height="320" style="width:160px;height:160px" aria-hidden="true"></canvas></div>';
+    drawLog(document.getElementById('empty-log'), 0.5);
+    return;
+  }
+  view.innerHTML = banner + VIEWS[S.route]();
+  var hl = document.getElementById('hero-log');
+  if (hl) { var c = monthCalc(S.month); drawLog(hl, c.y, { color: yieldColor(c.y), boards: 6 }); }
+}
+
+/* ---------------- запуск */
+function subscribeDb() {
+  var timer = setTimeout(function () { S.stale = true; scheduleRender(); }, 10000);
+  var got = 0;
+  function done() { got++; if (got >= COLS.length + 1) { clearTimeout(timer); S.stale = false; } }
+  COLS.forEach(function (c) {
+    var first = true;
+    S.db.collection(c).onSnapshot(function (snap) {
+      S.data[c] = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); });
+      S.loaded[c] = true;
+      if (first && !snap.metadata.fromCache) { first = false; done(); }
+      scheduleRender();
+    }, function (err) {
+      S.loaded[c] = true; scheduleRender();
+      if (err && err.code === 'revoked') { S.canWrite = false; }
+    });
+  });
+  var firstS = true;
+  S.db.doc('meta/settings').onSnapshot(function (snap) {
+    S.settings = Object.assign({}, DEFAULT_SETTINGS, snap.exists ? snap.data() : {});
+    S.loaded.settings = true;
+    if (firstS && !snap.metadata.fromCache) { firstS = false; done(); }
+    scheduleRender();
+  }, function () { S.loaded.settings = true; });
+}
+
+render();
+(function boot() {
+  var hasClaude = window.claude && typeof window.claude.use === 'function';
+  if (!hasClaude) { S.mode = 'local'; loadLocal(); render(); return; }
+  Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (res) {
+    var db = res[0], user = res[1];
+    S.user = user;
+    if (!db) { S.mode = 'local'; loadLocal(); render(); return; }
+    S.db = db; S.mode = 'db';
+    var who = user ? user.id().then(function (id) { S.me = id; }) : Promise.resolve();
+    var can = user ? user.can('data.write').then(function (v) { if (v === false) S.canWrite = false; }) : Promise.resolve();
+    Promise.all([who, can]).then(scheduleRender);
+    subscribeDb();
+    render();
+  }).catch(function () { S.mode = 'local'; loadLocal(); render(); });
+})();
+})();
+</script>
